@@ -1,0 +1,19 @@
+import {chromium} from '@playwright/test';
+import {mkdir,writeFile} from 'node:fs/promises';import {createHash} from 'node:crypto';import assert from 'node:assert/strict';
+const out=process.env.HOVER_OUT||'E:/temp/starhaven-alpha11-rc6-hover',url=process.env.HOVER_URL||'http://127.0.0.1:4202/';await mkdir(out,{recursive:true});
+const browser=await chromium.launch({headless:true,executablePath:'C:/Users/ertstyuqk/AppData/Local/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-win64/chrome-headless-shell.exe',args:['--use-angle=d3d11','--enable-gpu','--disable-software-rasterizer']});
+const report={method:'Exact independently reported reproduction: normal spawn/H, real robot hover, no pointer motion during D 6.5s then S 1s. Product evaluation reads only.',url,errors:[]};
+let page;
+try{page=await browser.newPage({viewport:{width:1440,height:960}});await page.addInitScript(()=>{window.__hoverInputs=[];for(const type of ['pointermove','keydown','keyup'])window.addEventListener(type,e=>window.__hoverInputs.push({type,code:e.code,x:e.clientX,y:e.clientY,trusted:e.isTrusted}),true);});
+page.on('pageerror',e=>report.errors.push(e.message));page.on('console',e=>{if(e.type()==='error')report.errors.push(e.text());});
+await page.goto(url);await page.waitForFunction(()=>window.starhaven?.ready);await page.waitForTimeout(900);await page.keyboard.press('h');await page.waitForTimeout(750);
+const bundle=await page.evaluate(()=>[...document.scripts].map(s=>s.src).find(s=>s.includes('/assets/index-')));report.build={bundle,sha256:createHash('sha256').update(Buffer.from(await(await fetch(bundle)).arrayBuffer())).digest('hex')};
+const state=()=>page.evaluate(()=>({labelHidden:document.getElementById('hotspot-label').hidden,label:document.getElementById('hotspot-label').textContent,player:window.starhaven.player,velocity:window.starhaven.velocity,pointerEvents:window.__hoverInputs.filter(e=>e.type==='pointermove').length}));
+let hover;
+for(const [x,y] of [[728,453],[728,445],[720,453],[736,453],[720,445],[736,445],[728,465]]){await page.mouse.move(x,y);await page.waitForTimeout(120);hover=await state();if(!hover.labelHidden&&hover.label.includes('助手'))break;}
+assert.ok(!hover.labelHidden&&hover.label.includes('助手'),'Could not establish actual robot hover');report.before=hover;await page.screenshot({path:out+'/01-robot-hover-visible.png'});
+await page.keyboard.down('d');await page.waitForTimeout(6500);await page.keyboard.up('d');report.afterFlight=await state();await page.screenshot({path:out+'/02-hover-cleared-without-mousemove.png'});
+assert.equal(report.afterFlight.pointerEvents,hover.pointerEvents);assert.equal(report.afterFlight.labelHidden,true);assert.ok(Math.hypot(...report.afterFlight.player.map((v,i)=>v-hover.player[i]))>20);
+await page.keyboard.down('s');await page.waitForTimeout(1000);await page.keyboard.up('s');await page.waitForTimeout(350);report.afterBrake=await state();await page.screenshot({path:out+'/03-label-stays-clear-after-brake.png'});
+assert.equal(report.afterBrake.pointerEvents,hover.pointerEvents);assert.equal(report.afterBrake.labelHidden,true);assert.ok(Math.hypot(...report.afterBrake.velocity)<.01);assert.deepEqual(report.errors,[]);report.status='passed';
+}catch(e){report.status='failed';report.failure=e.message;}finally{report.inputs=page?await page.evaluate(()=>window.__hoverInputs).catch(()=>[]):[];report.trustedInputs=report.inputs.filter(e=>e.trusted).length;await browser.close();report.browserClosed=true;await writeFile(process.env.HOVER_REPORT||'tests/v11-rc6-hover.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));if(report.status!=='passed')process.exitCode=1;}

@@ -1,0 +1,171 @@
+{
+  "url": "/assets/character/astronaut.glb",
+  "height": 1.7,
+  "rotation": [
+    0,
+    0,
+    0
+  ],
+  "source": "https://sketchfab.com/3d-models/cute-astronaut-816bd786fe8b4559a009de6a95582003",
+  "author": "haefu",
+  "title": "Cute Astronaut",
+  "license": "CC-BY-4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "materializedAt": "2026-10-06",
+  "provisional": false,
+  "status": "Confirmed requested haefu asset is available locally. Integrated visual acceptance is still pending.",
+  "bytes": 1198772,
+  "sha256": "0fc948127a889f64ed4659f74d084d998eb68acb92d7a892965a03edbea2905d",
+  "format": "glTF 2.0 binary",
+  "triangles": 5736,
+  "vertices": 11830,
+  "provenance": {
+    "acquisition": "User-uploaded native ChatGPT Library file, materialized with the official Library transfer helper.",
+    "libraryFileId": "libfile_ca7dbdbdf5b88191b255365cebe433be",
+    "fileId": "file_00000000ac1c81fbb69f66c374ba57dd",
+    "version": 0,
+    "localOriginal": "incoming/cute_astronaut.glb",
+    "scope": "Authorized for this independent local project. Do not publicly upload the original model or infer unrestricted redistribution permission.",
+    "preserved": "GLB copied byte-for-byte; original embedded PNG, geometry, skeleton, author animation and asset.extras attribution retained."
+  },
+  "textures": [
+    {
+      "kind": "embedded baseColor PNG",
+      "material": "Astronaut",
+      "width": 2048,
+      "height": 2048,
+      "bytes": 30563,
+      "preserved": true
+    }
+  ],
+  "skeleton": {
+    "sharedBones": 54,
+    "skinnedMeshes": 2,
+    "armature": "Armature_Astronaut",
+    "head": "kopf_04",
+    "chest": "brust_03",
+    "arms": [
+      "schulterL_00",
+      "unterarmL_05",
+      "schulterR_010",
+      "unterarmR_011"
+    ],
+    "legs": [
+      "oberschenkelL_016",
+      "unterschenkelL_017",
+      "fussL_018",
+      "oberschenkelR_019",
+      "unterschenkelR_020",
+      "fussR_021"
+    ],
+    "runtimeNameNote": "Three GLTFLoader removes dots and spaces from runtime node names. All animation bindings use actual runtime names."
+  },
+  "meshGroups": {
+    "body": "Object_9",
+    "visor": "Object_10"
+  },
+  "originalRestBounds": {
+    "width": 0.3017751658527509,
+    "height": 0.4372470474881673,
+    "depth": 0.31820671871035205
+  },
+  "orientation": {
+    "up": "+Y",
+    "front": "+Z",
+    "evidence": "Actual skinned visor bounds center z=0.086932 versus body center z=-0.011674; no corrective model rotation required."
+  },
+  "adaptation": {
+    "nodeScale": {},
+    "nodeRotation": {},
+    "note": "Use the original rounded chibi silhouette. No Quaternius head enlargement, shapeScale, leg compression or leg compensation. Original geometry and source texture bytes are preserved. Runtime welded normals soften hard export seams; a neutral-color albedo lift makes the suit cream while preserving saturated patches and dark gloves."
+  },
+  "animationMap": {
+    "idle": "Starhaven_Float",
+    "float": "Starhaven_Float",
+    "move": "Starhaven_Float",
+    "wave": null,
+    "generatedClipUrl": "/assets/character/float.animation.json",
+    "rootMotion": false,
+    "speed": 1,
+    "bones": {
+      "head": "kopf_04",
+      "chest": "brust_03",
+      "leftArm": "schulterL_00",
+      "rightArm": "schulterR_010",
+      "leftForearm": "unterarmL_05",
+      "rightForearm": "unterarmR_011",
+      "leftLeg": "oberschenkelL_016",
+      "rightLeg": "oberschenkelR_019",
+      "leftShin": "unterschenkelL_017",
+      "rightShin": "unterschenkelR_020",
+      "leftFoot": "fussL_018",
+      "rightFoot": "fussR_021"
+    }
+  },
+  "animations": [
+    {
+      "name": "Armature Astronaut|Armature AstronautAction",
+      "duration": 10.416666984558105,
+      "tracks": 75,
+      "source": "embedded author animation",
+      "usage": "Walk source retained but never mapped to idle or flight."
+    },
+    {
+      "name": "Starhaven_Float",
+      "duration": 4.8,
+      "tracks": 4,
+      "source": "Local external animation adapter, float.animation.json",
+      "usage": "Quiet shoulder and forearm loop from the original bind pose. No root-motion, scale or leg tracks."
+    }
+  ],
+  "materialMap": {
+    "Astronaut": {
+      "color": "#f3eee4",
+      "roughness": 0.58,
+      "metalness": 0.02,
+      "envMapIntensity": 0.45,
+      "clearcoat": 0.18,
+      "clearcoatRoughness": 0.45,
+      "preserveBaseColorMap": true,
+      "albedoLift": 0.68,
+      "albedoTarget": "#f4eee1",
+      "specularIntensity": 0.45,
+      "emissive": "#d8d6cc",
+      "emissiveIntensity": 0.09
+    },
+    "visier": {
+      "color": "#174568",
+      "roughness": 0.42,
+      "metalness": 0.05,
+      "envMapIntensity": 0.22,
+      "clearcoat": 0.15,
+      "clearcoatRoughness": 0.38,
+      "specularIntensity": 0.35,
+      "emissive": "#123f66",
+      "emissiveIntensity": 0.23
+    }
+  },
+  "validation": {
+    "threeRevision": "161",
+    "gltfLoaderStaticParsePassed": true,
+    "glbMagicVerified": true,
+    "embeddedTextureRetained": true,
+    "materialNames": [
+      "Astronaut",
+      "visier"
+    ],
+    "runtimeMeshNames": [
+      "Object_9",
+      "Object_10"
+    ],
+    "generatedClipFormat": "THREE.AnimationClip.toJSON",
+    "generatedClipBoneNames": [
+      "schulterL_00.quaternion",
+      "schulterR_010.quaternion",
+      "unterarmL_05.quaternion",
+      "unterarmR_011.quaternion"
+    ],
+    "visualAcceptance": "Pending root integrated real-render review; not inferred from static measurements."
+  },
+  "smoothNormals": true
+}

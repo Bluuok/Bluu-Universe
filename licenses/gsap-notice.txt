@@ -1,0 +1,1 @@
+GSAP 3.12.5 package metadata identifies the Standard no-charge license, not MIT. The local npm package README is retained verbatim in gsap-README-license.md; https://gsap.com/standard-license and https://gsap.com/licensing/ are the package's cited terms. This initial project has no public deployment or commercial asset purchase.

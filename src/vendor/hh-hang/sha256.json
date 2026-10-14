@@ -1,0 +1,10 @@
+{
+  "capsuleCollision.js": "b288483bcd81e33843359ef23cf571e3322cf99376bfd2a0c249162da51fbe36",
+  "colliderBuild.js": "02d53e297dd0c2a4ab27b5935f16de1f62e57297408202d0d31904182ac21cd1",
+  "LICENSE.three-player-controller.txt": "14fafdcdf5295edb55c525ab13a5db45c75407566cf0cb1f4301ddee999662fc",
+  "provenance.json": "5c95d1c5477ada51baec830f0dbc249043545bd84afbe0697fa91373fedb4a19",
+  "smoke.mjs": "44e56686d003b03c4970d72b4ea635bd54e3281ae8934231703ed2fcaff59027",
+  "browser-resolved-smoke.cjs": "507041df268aee948e89be94d4dc405e0be7902ada667940229925a3398d4e7c",
+  "package-lock.json": "30c623c8f1f338eaec7c4d91b1c3e44664925b5bbc9b002b2996f68312a12398",
+  "cameraRaycast.js": "9ec56ce9129b64552cf92f31d5ebff0191b74e596a0ab060f32200cd3c24d1a3"
+}

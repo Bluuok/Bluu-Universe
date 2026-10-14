@@ -1,0 +1,25 @@
+{
+  "name": "bluu-universe",
+  "version": "0.4.0-alpha.11",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 4173 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "test:interaction": "node tests/v02-edge-review.mjs",
+    "test:navigation": "node tests/player-route-review.mjs",
+    "test:geometry": "node tests/navigation-geometry.mjs",
+    "test:flight": "node tests/night-flight-check.mjs",
+    "test:night-routes": "node tests/night-route-review.mjs"
+  },
+  "dependencies": {
+    "gsap": "3.12.5",
+    "three": "0.161.0",
+    "three-mesh-bvh": "0.7.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.51.1",
+    "vite": "6.1.0"
+  }
+}

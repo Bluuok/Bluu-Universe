@@ -1,0 +1,18 @@
+export const PaintFlowManifest = {
+  enabled:true, seed:5314,
+  budget:{strokes:240,triangles:60000,drawCalls:3},
+  geometry:{curveSegments:10,crossSegments:14},
+  layerDepth:1.3,
+  surface:{strokeStrength:.24,relief:.007,paintScale:.30,globalUV:true},
+  blend:{resolution:96,smoothness:.26},
+  underpaint:{enabled:true,width:2.3,depth:.85,segmentLength:15,curveSegments:10,crossSegments:10},
+  motion:{amplitude:.18,rate:.22},
+  clearance:4.5,
+  palette:{blue:['#244c8d','#3168a7','#417eaf'],crest:'#91adbb',shadow:'#122b54',gold:'#bd9855',goldCrest:'#dec28a',goldShadow:'#665133',goldFraction:.10},
+  paths:[
+    {id:'main-flow',enabled:false,kind:'vortex',band:'main',group:0,count:39,lanes:3,width:[.84,1.24],depth:[.32,.48],length:1.48,laneSpacing:2.2,surface:5.4,phase:.1},
+    {id:'upper-return',blend:true,kind:'curl',group:1,position:[-112,-22,-111],rotation:[.20,-.25,-.40],radius:[25,8.5],turns:.72,phase:2.3,flatten:.74,depthWave:10,depthCycles:1,depthDrift:18,laneRanges:[[0,1],[.12,.48],[.50,.80]],strokeLength:[7,10],count:63,lanes:3,width:[.90,1.28],depth:[.56,.80],length:1.80,laneSpacing:2.0,surface:0},
+    {id:'distant-eddy',kind:'curl',group:2,position:[-25,-30,-178],rotation:[.35,.65,.15],radius:[16,7.5],turns:1.20,phase:-.65,flatten:.85,depthWave:7,count:39,lanes:3,width:[.80,1.18],depth:[.50,.72],length:1.75,laneSpacing:1.8,surface:0},
+    {id:'broad-s-current',kind:'path',group:1,points:[[-139,-17,-124],[-116,-9,-109],[-81,-26,-83],[-42,-23,-68],[-10,-7,-108],[-15,-19,-155],[-40,-38,-186]],count:69,lanes:3,width:[.95,1.35],depth:[.52,.76],length:1.7,laneSpacing:2.0,surface:0,phase:1.7},
+  ],
+};

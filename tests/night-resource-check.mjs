@@ -1,0 +1,7 @@
+import {readFile,writeFile} from 'node:fs/promises';import {createHash} from 'node:crypto';
+const base=process.env.RESOURCE_URL||'http://127.0.0.1:4202/';
+const html=await(await fetch(base)).text(),bundle=html.match(/src="([^"]+\/index-[^"]+\.js)"/)[1],buildSha=createHash('sha256').update(Buffer.from(await(await fetch(new URL(bundle,base))).arrayBuffer())).digest('hex');
+const old=JSON.parse(await readFile('tests/v10-resource-locks.json','utf8')),locks=[];
+for(const prior of old.locks){const bytes=await readFile(prior.path),actualSha256=createHash('sha256').update(bytes).digest('hex');let servedSha256=null;if(prior.path.startsWith('public/')){const response=await fetch(base+prior.path.slice(7));if(!response.ok)throw Error(prior.path+': '+response.status);servedSha256=createHash('sha256').update(Buffer.from(await response.arrayBuffer())).digest('hex');}locks.push({path:prior.path,expectedSha256:prior.expectedSha256,actualSha256,servedSha256,matches:actualSha256===prior.expectedSha256&&(!servedSha256||servedSha256===prior.expectedSha256)});}
+const report={at:new Date().toISOString(),build:bundle.split('/').pop(),sha256:buildSha,status:locks.every(x=>x.matches)?'passed':'failed',method:'Retained alpha.10 resource locks compared with current local bytes and frozen build HTTP bytes',locks};
+await writeFile(process.env.RESOURCE_REPORT||'tests/v11-rc6-resources.json',JSON.stringify(report,null,2));console.log(JSON.stringify({status:report.status,local:locks.length,http:locks.filter(x=>x.servedSha256).length,failed:locks.filter(x=>!x.matches)}));

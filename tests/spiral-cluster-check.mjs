@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import {writeFile,unlink} from 'node:fs/promises';
+import {build} from 'esbuild';
+import {pathToFileURL} from 'node:url';
+import path from 'node:path';
+import {StarfieldBackdrop} from '../src/scenes/StarfieldBackdrop.js';
+import {AssetManifest} from '../src/config/AssetManifest.js';
+const report={at:new Date().toISOString(),scope:'Exact production attribute/resource comparison against frozenRC55; no visual or GPU claim',checks:[]};
+const check=(name,fn)=>{fn();report.checks.push({name,passed:true});};
+const temp=path.resolve('tests/.cluster-rc55-check.mjs');
+let previous,current,disabled;
+try {
+ await build({stdin:{contents:"export {StarfieldBackdrop} from 'E:/temp/starhaven-rc55-source/src/scenes/StarfieldBackdrop.js';export {AssetManifest} from 'E:/temp/starhaven-rc55-source/src/config/AssetManifest.js';",resolveDir:process.cwd()},bundle:true,format:'esm',platform:'browser',outfile:temp,alias:{three:path.resolve('node_modules/three')},logLevel:'silent'});
+ const baseline=await import(pathToFileURL(temp).href);
+ previous=new baseline.StarfieldBackdrop({manifest:baseline.AssetManifest.sky});
+ current=new StarfieldBackdrop({manifest:AssetManifest.sky});
+ disabled=new StarfieldBackdrop({manifest:{...AssetManifest.sky,spiralCluster:{...AssetManifest.sky.spiralCluster,enabled:false}}});
+ const cluster=sky=>sky.starFields.find(x=>x.id==='depth-clusters').object;
+ const before=cluster(previous),after=cluster(current),off=cluster(disabled),attrs=after.geometry.attributes;
+ check('480 original cluster stars, exact existing draw objects and shaders',()=>{assert.equal(attrs.position.count,480);assert.equal(current.starFields.length,previous.starFields.length);assert.equal(current.group.children.length,previous.group.children.length);assert.equal(after.material.vertexShader,before.material.vertexShader);assert.equal(after.material.fragmentShader,before.material.fragmentShader);assert.deepEqual(Object.keys(attrs),Object.keys(before.geometry.attributes));});
+ const changed={positions:0,colors:0,otherClusters:0};
+ check('Only80 selected points change; other400 positions/colors and all sizes/phases identical',()=>{for(let i=0;i<480;i++){for(const [name,key]of [['position','positions'],['tint','colors']]){const differs=[0,1,2].some(a=>attrs[name].getComponent(i,a)!==before.geometry.attributes[name].getComponent(i,a));if(differs){changed[key]++;if(i%6!==0)changed.otherClusters++;}}}assert.equal(changed.positions,80);assert.equal(changed.colors,80);assert.equal(changed.otherClusters,0);for(const name of ['worldSize','phase'])assert.deepEqual(attrs[name].array,before.geometry.attributes[name].array);});
+ check('One config toggle restores byte-identicalRC55 attributes',()=>{for(const name of Object.keys(attrs))assert.deepEqual(off.geometry.attributes[name].array,before.geometry.attributes[name].array);});
+ check('Other star/dust attributes and shaders unchanged',()=>{for(const [i,field]of current.starFields.entries()){if(field.id==='depth-clusters')continue;for(const [name,a]of Object.entries(field.object.geometry.attributes))assert.deepEqual(a.array,previous.starFields[i].object.geometry.attributes[name].array);}for(const [i,field]of current.dustVolumes.entries())for(const [name,a]of Object.entries(field.object.geometry.attributes))assert.deepEqual(a.array,previous.dustVolumes[i].object.geometry.attributes[name].array);});
+ const normal=new THREE.Vector3(...AssetManifest.sky.spiralCluster.normal).normalize(),center=new THREE.Vector3(-75,34,-91),p=new THREE.Vector3();const depths=[];
+ check('Finite bounded3D samples, with nonzero disk thickness',()=>{for(const a of Object.values(attrs))assert.ok([...a.array].every(Number.isFinite));for(let i=0;i<480;i+=6){p.fromBufferAttribute(attrs.position,i).sub(center);depths.push(p.dot(normal));assert.ok(p.length()<24);}assert.ok(Math.max(...depths)-Math.min(...depths)>.1);});
+ const geometryCounts=[],materialCounts=[],texture=new THREE.Texture();let textureDisposals=0;current.ownedTextures.add(texture);texture.addEventListener('dispose',()=>textureDisposals++);current.group.traverse(o=>{for(const [resource,counts]of [[o.geometry,geometryCounts],[o.material,materialCounts]])if(resource){const record={count:0};resource.addEventListener('dispose',()=>record.count++);counts.push(record);}});current.dispose();current=null;
+ check('Existing owner releases every geometry/material and owned texture once',()=>{assert.ok(geometryCounts.every(r=>r.count===1));assert.ok(materialCounts.every(r=>r.count===1));assert.equal(textureDisposals,1);});
+ report.status='passed';report.changed=changed;report.normalThickness=Math.max(...depths)-Math.min(...depths);report.resources={geometries:geometryCounts.length,materials:materialCounts.length,textureDisposals};
+}catch(e){report.status='failed';report.error=e.stack;process.exitCode=1;}finally{previous?.dispose();disabled?.dispose();current?.dispose();await unlink(temp).catch(()=>{});await writeFile(process.env.CLUSTER_REPORT||'tests/v12-rc56-cluster-cpu.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));}

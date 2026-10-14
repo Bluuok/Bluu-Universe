@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {writeFile} from 'node:fs/promises';
+import * as THREE from 'three';
+import {FlightExhaust} from '../src/scenes/FlightExhaust.js';
+import {CharacterScene} from '../src/scenes/CharacterScene.js';
+const scene=new THREE.Scene(),parent=new THREE.Group();scene.add(parent);
+const exhaust=new FlightExhaust(parent),seen=new Map();
+exhaust.group.traverse(object=>{for(const resource of [object.geometry,...[object.material].flat()].filter(Boolean))if(!seen.has(resource)){const count={n:0};seen.set(resource,count);resource.addEventListener('dispose',()=>count.n++);}});
+exhaust.dispose();exhaust.dispose();assert.equal(parent.children.length,0);assert.ok([...seen.values()].every(c=>c.n===1));
+const character=new CharacterScene({scene,manifest:{position:[0,0,0]},animationMap:{}});
+const texture=new THREE.Texture(),geometry=new THREE.BoxGeometry(),matA=new THREE.MeshStandardMaterial({map:texture}),matB=new THREE.MeshStandardMaterial({map:texture});
+const skinned=new THREE.SkinnedMesh(geometry,matA);skinned.skeleton=new THREE.Skeleton([new THREE.Bone()]);skinned.skeleton.computeBoneTexture();
+const model=new THREE.Group();model.add(skinned,new THREE.Mesh(geometry,matB));character.model=model;character.modelRoot.add(model);character.exhaust=new FlightExhaust(character.modelRoot);
+const owned=[texture,geometry,matA,matB,skinned.skeleton.boneTexture,character.wake.geometry,character.wake.material],counts=owned.map(resource=>{const count={n:0};resource.addEventListener('dispose',()=>count.n++);return count;});
+character.dispose();character.dispose();assert.ok(counts.every(c=>c.n===1));assert.equal(character.group.parent,null);assert.equal(character.wake.points.parent,null);assert.equal(parent.parent,scene,'Borrowed scene and other components stay alive');
+const report={status:'passed',method:'Real Three dispose events for shared materials/textures, bone texture and separately attached effects; no GPU performance claim',checks:['Exhaust detaches and frees shared nozzle material exactly once','Character frees shared body, skeleton and separately attached wake exactly once','Repeated component disposal leaves unrelated scene content intact'],exhaustResources:seen.size,characterSharedResources:owned.length};
+await writeFile(process.env.LIFECYCLE_REPORT||'tests/v12-flight-effects-lifecycle.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));

@@ -1,0 +1,291 @@
+{
+  "repository": "https://github.com/alchaincyf/3d-vibe-coding-handbook",
+  "branch": "master",
+  "gitTreeSha": "272a90ef84a078464dc277624267cb9b2dfe6449",
+  "downloadedAt": "2026-10-06",
+  "creator": "花叔 / alchaincyf",
+  "originalPainting": "Vincent van Gogh, The Starry Night, 1889 (as credited by upstream demo)",
+  "layerConceptCredit": "@HoodyLiu (as credited by upstream demo)",
+  "upstreamLicense": "CC BY-NC-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+  "licenseDeclarationSource": "https://github.com/alchaincyf/3d-vibe-coding-handbook#授权",
+  "personalPermissionScope": "User states the previously listed author has granted this user personal reuse permission for the independent local portfolio. This record does not grant unrestricted reuse or redistribution to other people and does not replace the upstream license or third-party obligations.",
+  "files": [
+    {
+      "filename": "layer-夜空.png",
+      "localUrl": "/assets/sky/candidates/layer-夜空.png",
+      "upstreamPath": "demos/星月夜/assets/layer-夜空.png",
+      "upstreamBlobUrl": "https://github.com/alchaincyf/3d-vibe-coding-handbook/blob/master/demos/%E6%98%9F%E6%9C%88%E5%A4%9C/assets/layer-%E5%A4%9C%E7%A9%BA.png",
+      "downloadUrl": "https://raw.githubusercontent.com/alchaincyf/3d-vibe-coding-handbook/master/demos/%E6%98%9F%E6%9C%88%E5%A4%9C/assets/layer-%E5%A4%9C%E7%A9%BA.png",
+      "bytes": 6159983,
+      "sha256": "a77703e1cff496c9525d545b985610c9d545b953949178d93676754292d5016c",
+      "width": 2048,
+      "height": 1621,
+      "channels": "RGBA",
+      "bitDepth": 8,
+      "alpha": true,
+      "transparentPixelPercent": 31.6073399426,
+      "partiallyTransparentPixelPercent": 0.2095904341,
+      "visiblePixelBounds": {
+        "minX": 0,
+        "minY": 0,
+        "maxX": 2047,
+        "maxY": 1274
+      },
+      "role": "Painted sky background; lower village/hills removed with alpha; cypress and large moon remain in sky pixels."
+    },
+    {
+      "filename": "layer-星月与旋涡.png",
+      "localUrl": "/assets/sky/candidates/layer-星月与旋涡.png",
+      "upstreamPath": "demos/星月夜/assets/layer-星月与旋涡.png",
+      "upstreamBlobUrl": "https://github.com/alchaincyf/3d-vibe-coding-handbook/blob/master/demos/%E6%98%9F%E6%9C%88%E5%A4%9C/assets/layer-%E6%98%9F%E6%9C%88%E4%B8%8E%E6%97%8B%E6%B6%A1.png",
+      "downloadUrl": "https://raw.githubusercontent.com/alchaincyf/3d-vibe-coding-handbook/master/demos/%E6%98%9F%E6%9C%88%E5%A4%9C/assets/layer-%E6%98%9F%E6%9C%88%E4%B8%8E%E6%97%8B%E6%B6%A1.png",
+      "bytes": 1914365,
+      "sha256": "79162a69ed34b443c42aa9843ba123005caf0d8e3730482e6043addc1ac5f84c",
+      "width": 2048,
+      "height": 1621,
+      "channels": "RGBA",
+      "bitDepth": 8,
+      "alpha": true,
+      "transparentPixelPercent": 80.6137885083,
+      "partiallyTransparentPixelPercent": 1.1668144664,
+      "visiblePixelBounds": {
+        "minX": 0,
+        "minY": 0,
+        "maxX": 2047,
+        "maxY": 1142
+      },
+      "role": "Transparent star/moon/swirl foreground cutout on shared canvas"
+    }
+  ],
+  "alignment": {
+    "samePixelCanvas": true,
+    "width": 2048,
+    "height": 1621,
+    "sourceDemoCanvasReference": [
+      3840,
+      3041
+    ],
+    "sourceDemoPlaneWidth": 4,
+    "sourceDemoPlaneHeight": 3.167708333333333,
+    "skyZ": 0,
+    "starsZ": 0.11,
+    "note": "Use identical UV crop and transform for both images. Background already shows stars and swirls; overlay is a matching front layer, not a separate seamless image. Transparent lower cutout needs a dark backing. This is a painted scene backdrop, not a panoramic or tileable texture."
+  },
+  "visualInspection": "Original downloaded PNGs were opened with view_image and showed blue/gold oil-paint brushwork. This records source-asset inspection; integrated runtime pixel/visual acceptance for build index-DKpZJTzf.js is pending.",
+  "referenceImplementation": {
+    "upstreamPath": "demos/星月夜/index.html",
+    "localEntry": "vendor/starry-night-reference/package/10-demo-星月夜/星月夜/index.html",
+    "sourceLines": {
+      "layers": 131,
+      "makePlane": 208,
+      "modelRegistration": 245,
+      "modeSwitch": 283,
+      "frame": 344
+    },
+    "sourceThreeRevision": "160",
+    "projectThreeRevision": "161",
+    "releaseTag": "v260914c",
+    "releasePackage": "10-demo-starry-night.zip",
+    "releaseBytes": 33613022,
+    "releaseSha256": "841977f4266d86ace830ebeac2328f2e8f4aab58b3f68d9d1212193f1d572c55",
+    "packageChecksumCount": 16,
+    "packageChecksumsPassed": true,
+    "modelUse": "village.glb and cypress.glb are vendor references only; neither is an active public asset."
+  },
+  "activeImplementation": {
+    "build": "index-DKpZJTzf.js",
+    "module": "src/scenes/StarfieldBackdrop.js",
+    "configuration": "src/config/AssetManifest.js: sky",
+    "sharedSourcePNGCount": 2,
+    "layerInstanceCount": 6,
+    "frameCount": 3,
+    "sourceLayers": [
+      {
+        "id": "sky",
+        "z": 0
+      },
+      {
+        "id": "stars",
+        "z": 0.11
+      }
+    ],
+    "ported": [
+      "Applicable LAYERS definitions",
+      "Original makePlane white MeshBasicMaterial/SRGB/transparent/DoubleSide/depthWrite=false/toneMapped=false",
+      "Shared-canvas crop and actual image aspect",
+      "Group and renderOrder",
+      "Original local-z formula and inertia"
+    ],
+    "material": {
+      "type": "MeshBasicMaterial",
+      "color": "#ffffff",
+      "colorSpace": "SRGBColorSpace",
+      "transparent": true,
+      "side": "DoubleSide",
+      "depthWrite": false,
+      "toneMapped": false,
+      "renderOrder": [
+        -30,
+        -29
+      ]
+    },
+    "frames": [
+      {
+        "id": "main",
+        "position": [
+          -68,
+          -40,
+          -85
+        ],
+        "lookAt": [
+          -0.53,
+          2.8,
+          1
+        ],
+        "crop": [
+          0.29,
+          0.04,
+          0.49,
+          0.61
+        ],
+        "size": [
+          124,
+          122.182358
+        ],
+        "edgeFeather": 0.085
+      },
+      {
+        "id": "door",
+        "position": [
+          0,
+          10,
+          100
+        ],
+        "lookAt": [
+          0,
+          2,
+          0
+        ],
+        "crop": [
+          0.44,
+          0.06,
+          0.27,
+          0.19
+        ],
+        "size": [
+          180,
+          100.2572
+        ]
+      },
+      {
+        "id": "window",
+        "position": [
+          100,
+          12,
+          0
+        ],
+        "lookAt": [
+          0,
+          2,
+          0
+        ],
+        "crop": [
+          0.41,
+          0.04,
+          0.29,
+          0.18
+        ],
+        "size": [
+          160,
+          78.6045
+        ]
+      }
+    ],
+    "sameCropAspectAndMaskWithinFrame": true,
+    "framesFollowCameraOrState": false,
+    "originalPNGBytesPreserved": true,
+    "sharedTextures": true,
+    "textureClone": false,
+    "rgbColorOrPaintingShader": false,
+    "adaptation": {
+      "mask": {
+        "type": "scalar coverage DataTexture alphaMap",
+        "size": [
+          256,
+          256
+        ],
+        "uv": "uv1",
+        "channel": 1,
+        "purpose": "Edge and quiet-area coverage only; no painted RGB content"
+      },
+      "depth": {
+        "sourceFormula": "i*.0022 + L.z*expandNow*2.05",
+        "worldScale": "frame width / 4",
+        "inertia": "dt-equivalent exponential adaptation of original .075-per-frame approach",
+        "target": 0.06,
+        "amplitude": 0.02,
+        "speed": 0.18,
+        "changes": "local layer z only"
+      }
+    },
+    "renderPipeline": {
+      "composer": false,
+      "outputPass": false,
+      "bloom": false,
+      "directRender": true,
+      "toneMapping": "ACESFilmicToneMapping",
+      "exposure": 0.85,
+      "skyToneMapped": false,
+      "PBRAndRoomBasicToneMapped": true,
+      "singleThreeEngine": true,
+      "singleCameraOwner": "CameraDirector"
+    },
+    "visualAcceptance": "Actual final-build runtime captures and checks completed; parent visual review pending.",
+    "runtimeValidation": {
+      "report": "tests/revision-capture.json",
+      "build": "index-DKpZJTzf.js",
+      "status": "passed",
+      "captures": 7,
+      "coreChecks": 7,
+      "mobile": "passed",
+      "skyVerification": {
+        "status": "passed",
+        "observedStates": [
+          "SPACE",
+          "DOCKING",
+          "TRANSITION",
+          "ROOM",
+          "PROJECT"
+        ],
+        "snapshots": 9,
+        "frames": 3,
+        "layers": 6,
+        "pipeline": "direct",
+        "material": "white MeshBasicMaterial, toneMapped:false, SRGB",
+        "aspect": "checked from actual image size and cropped geometry UV span",
+        "registration": "actual UV0 plus independent UV1 coverage checked",
+        "worldFrames": "worldPosition and worldQuaternion invariant across observations"
+      },
+      "errors": {
+        "console": 0,
+        "shader": 0,
+        "page": 0,
+        "request": 0
+      },
+      "colorPresence": {
+        "sourceBlue": true,
+        "sourceGold": true,
+        "mainBlue": true,
+        "mainGold": true
+      },
+      "visualAcceptance": "Awaiting parent review; runtime checks and color presence do not constitute visual acceptance."
+    }
+  },
+  "history": {
+    "v1Build": "index-BJK0dhHY.js",
+    "status": "Historical comparison only",
+    "implementation": "Two source PNGs were previously shown through a project-written color/crop ShaderMaterial and independent layer/frame arrangements. That shader is no longer active.",
+    "reference": "docs/design-implementation.md: 星月夜 v1 历史核对与移植边界"
+  }
+}

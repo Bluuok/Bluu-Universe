@@ -1,0 +1,134 @@
+// One cancellable animation owns the paper surface. Repeated input targets the
+// latest requested spread; no delayed callback can resurrect a closed book.
+export class ProjectBook {
+  constructor(panel) {
+    this.events=new AbortController();const options={signal:this.events.signal};
+    this.panel = panel;
+    this.spread = panel.querySelector('.book-spread');
+    this.sheet = panel.querySelector('.book-turn');
+    this.page = 0;
+    this.revision = 0;
+    this.animations = new Set();
+    this.status = 'closed';
+    this.tabs = [...panel.querySelectorAll('[data-book-page]')];
+    this.tabs.forEach(button => button.addEventListener('click', () => this.turn(Number(button.dataset.bookPage)),options));
+    panel.querySelector('#book-prev').addEventListener('click',()=>this.turn(this.page-1),options);
+    panel.querySelector('#book-next').addEventListener('click',()=>this.turn(this.page+1),options);
+    panel.addEventListener('keydown', event => {
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+        event.preventDefault(); this.turn(this.page + (event.key === 'ArrowRight' ? 1 : -1));
+      }
+      if (event.key === 'Tab') {
+        const targets = [...panel.querySelectorAll('button:not(:disabled),a[href]')].filter(el => el.getClientRects().length);
+        const first = targets[0], last = targets.at(-1);
+        if (event.shiftKey && (document.activeElement === first || !panel.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
+    },options);
+  }
+
+  get duration() { return matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 460; }
+  dispose(){this.events.abort();this.reset();}
+  cancel() {
+    this.revision++;
+    for (const animation of this.animations) animation.cancel();
+    this.animations.clear();
+    this.sheet.replaceChildren(); this.sheet.hidden = true;
+  }
+  async animate(element, frames, duration = this.duration) {
+    const animation = element.animate(frames, {duration, easing:'cubic-bezier(.22,.75,.25,1)', fill:'both'});
+    this.animations.add(animation);
+    try { await animation.finished; } catch { return false; }
+    finally { this.animations.delete(animation); animation.cancel(); }
+    return true;
+  }
+
+  async open(project) {
+    const wasOpen = !this.panel.hidden;
+    this.cancel(); const revision = this.revision;
+    this.project = project; this.page = 0; this.status = 'opening';
+    this.panel.hidden = false; this.panel.inert = false;
+    this.render();
+    this.panel.querySelector('#project-close').focus({preventScroll:true});
+    await this.animate(this.panel, wasOpen
+      ? [{opacity:.7, transform:'translateY(10px)'},{opacity:1, transform:'none'}]
+      : [{opacity:0, transform:'perspective(1500px) translateY(36px) rotateY(-12deg) scale(.94)'},{opacity:1, transform:'perspective(1500px) translateY(0) rotateY(0) scale(1)'}], this.duration + (wasOpen ? 0 : 140));
+    if (revision === this.revision) this.status = 'open';
+  }
+
+  async close() {
+    if (this.panel.hidden) return true;
+    this.cancel(); const revision = this.revision;
+    this.status = 'closing'; this.panel.inert = true;
+    await this.animate(this.panel, [{opacity:1, transform:'none'},{opacity:0, transform:'perspective(1500px) translateY(24px) rotateY(-9deg) scale(.96)'}], this.duration * .65);
+    if (revision !== this.revision) return false;
+    this.panel.hidden = true; this.panel.inert = false; this.status = 'closed';
+    return true;
+  }
+
+  reset() { this.cancel(); this.panel.hidden = true; this.panel.inert = false; this.status = 'closed'; }
+
+  async turn(requested) {
+    if (this.panel.hidden || this.status === 'closing') return;
+    const next = Math.max(0, Math.min(2, requested));
+    if (next === this.page) return;
+    const forward = next > this.page;
+    const face = this.panel.querySelector(forward ? '.book-right' : '.book-left').cloneNode(true);
+    face.removeAttribute('id');
+    face.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+    face.querySelectorAll('a,button').forEach(el => el.setAttribute('tabindex', '-1'));
+    this.cancel(); const revision = this.revision;
+    this.status = 'turning'; this.page = next; this.render();
+    this.sheet.dataset.direction = forward ? 'next' : 'previous';
+    this.sheet.replaceChildren(face); this.sheet.hidden = false;
+    await this.animate(this.sheet, [{transform:'rotateY(0deg)', opacity:1},{transform:`rotateY(${forward ? -172 : 172}deg)`, opacity:.12}]);
+    if (revision === this.revision) { this.sheet.hidden = true; this.sheet.replaceChildren(); this.status = 'open'; }
+  }
+
+  render() {
+    const p = this.project, panel = this.panel;
+    const previousFocus = document.activeElement;
+    const focusWasInside = panel.contains(previousFocus);
+    const set = (id, value) => { panel.querySelector('#'+id).textContent = value || ''; };
+    set('project-category', p.category || '作品 / 项目');
+    set('project-title', p.name || p.title);
+    set('project-summary', p.summary || p.description);
+    set('book-section', ['作品概览','实现与细节','继续探索'][this.page]);
+    set('book-page-label', `${String(this.page * 2 + 1).padStart(2,'0')} — ${String(this.page * 2 + 2).padStart(2,'0')} / 06`);
+    panel.dataset.page = String(this.page);
+    this.tabs.forEach((button, index) => { button.setAttribute('aria-pressed',String(index === this.page)); });
+    const previous = panel.querySelector('#book-prev'), next = panel.querySelector('#book-next');
+    // A focused native button drops focus to BODY when disabled. Hand focus to
+    // this chapter first so keyboard reversal and the dialog's Tab loop survive.
+    if ((previousFocus === previous && this.page === 0) || (previousFocus === next && this.page === 2)) {
+      this.tabs[this.page].focus({preventScroll:true});
+    }
+    previous.disabled = this.page === 0;
+    next.disabled = this.page === 2;
+    const media = p.media?.[this.page === 1 && p.media.length > 1 ? 1 : 0];
+    const image = panel.querySelector('#project-image'), src = media?.src || p.image || p.screenshot;
+    image.hidden = !src; if (src && image.getAttribute('src') !== src) image.src = src;
+    image.alt = media?.alt || `${p.name || p.title} 的真实项目截图`;
+    panel.querySelector('.book-empty').hidden = Boolean(src);
+    set('book-caption', src ? media?.caption || p.mediaNote || '真实组件截图，使用受控样例数据。' : '作品、研究与开源记录');
+    const details = p.details || p.highlights || [];
+    const selected = this.page === 0 ? details.slice(0, 2) : this.page === 1 ? details : [];
+    panel.querySelector('#project-details').replaceChildren(...selected.map(detail => {
+      const paragraph = document.createElement('p');
+      paragraph.textContent = typeof detail === 'string' ? detail : detail.text || detail.title || '';
+      return paragraph;
+    }));
+    const links = (p.links || []).filter(link => typeof link.url === 'string' && /^https?:\/\//.test(link.url));
+    panel.querySelector('#project-links').replaceChildren(...links.map(link => {
+      const a = document.createElement('a'); a.href = link.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      a.textContent = (link.label || link.title || '打开项目') + ' ↗'; return a;
+    }));
+    set('book-links-note', links.length ? '从这些真实项目入口，继续阅读代码、文档与贡献。' : '联系方式与简历尚未配置。');
+    this.spread.querySelectorAll('.book-page').forEach(el => { el.scrollTop = 0; });
+    this.spread.scrollTop = 0;
+    // Arrow navigation may also replace the link that currently owns focus.
+    if (focusWasInside && !panel.contains(document.activeElement)) this.tabs[this.page].focus({preventScroll:true});
+  }
+  get telemetry() { return {status:this.status, page:this.page, project:this.project?.id, animations:this.animations.size}; }
+}

@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import {writeFile} from 'node:fs/promises';
+import {Vector3,Object3D,PerspectiveCamera} from 'three';
+import {RoomPassage} from '../src/core/RoomPassage.js';
+import {ExperienceState} from '../src/core/ExperienceState.js';
+import {CameraDirector} from '../src/core/CameraDirector.js';
+import {BuildingLayout} from '../src/config/BuildingLayout.js';
+import {SpaceCollision} from '../src/core/SpaceCollision.js';
+import {CollisionManifest} from '../src/config/CollisionManifest.js';
+const state=new ExperienceState(),director=new CameraDirector(new PerspectiveCamera(43,1.5,.1,1800)),group=new Object3D();
+const character={group,setVisible(v){this.visible=v;},setPresence(p){this.presence=p;}};
+const controller={forward:new Vector3(0,0,-1),velocity:new Vector3(0,0,-5),flight:{speed:12},yaw:0,pitch:0,clear(){this.velocity.set(0,0,0);},resetHeading(yaw=.47){this.yaw=yaw;this.pitch=0;}};
+state.onChange(()=>controller.clear());
+const space={docking:new Vector3(...BuildingLayout.anchors.docking),building:{setDoorOpen(v){this.open=v;}},setInteriorProgress(p){this.interior=p;}};
+let enabled=true,blocked=false;const passage=new RoomPassage({state,director,controller,character,space,room:{},layout:BuildingLayout,canEnter:()=>enabled,canTraverse:()=>!blocked,getRoomView:()=>({position:new Vector3(-12,10,15),target:new Vector3(0,2,0)})});
+const exitViews=[],checks=[],check=(name,fn)=>{fn();checks.push(name);};
+const approach=(p=[1.35,1.6,8])=>{group.position.set(1.35,1.6,10);passage.previous.copy(group.position);group.position.fromArray(p);controller.velocity.set(0,0,-5);controller.forward.set(0,0,-1);};
+const tick=seconds=>{for(let i=0;i<seconds*120;i++){passage.update(1/120);director.update(1/120,group.position);}};
+check('Stationary door proximity never starts entry',()=>{approach();controller.velocity.set(0,0,0);passage.update(.01);assert.equal(state.value,'SPACE');});
+check('Side/rear heading never starts entry',()=>{approach();controller.forward.set(1,0,0);passage.update(.01);assert.equal(state.value,'SPACE');});
+check('Roof pass stays outside',()=>{approach([1.35,7,8]);passage.update(.01);assert.equal(state.value,'SPACE');});
+check('Loading and blocked traversal stay outside',()=>{for(const type of ['loading','blocked']){approach();enabled=type!=='loading';blocked=type==='blocked';passage.update(.01);assert.equal(state.value,'SPACE');}enabled=true;blocked=false;});
+check('Aligning after a side approach starts one entry without consuming the pilot step twice',()=>{approach();controller.forward.set(1,0,0);passage.update(.01);assert.equal(state.value,'SPACE');group.position.z-=.05;controller.forward.set(0,0,-1);const crossing=group.position.clone();passage.update(.01);assert.equal(state.value,'DOCKING');assert.ok(group.position.distanceTo(crossing)<1e-12);assert.equal(passage.phase.elapsed,0);assert.equal(passage.flight.velocity.z,-5);assert.equal(passage.entries,1);assert.equal(controller.velocity.length(),0);assert.equal(passage.tryEnter(),false);});
+check('Entry completes with the same room and no pending transition',()=>{tick(3);assert.equal(state.value,'ROOM');assert.equal(passage.phase,null);assert.equal(director.transition,null);assert.equal(space.interior,1);assert.equal(character.visible,false);});
+check('Exit faces outward, clears the trailing camera and cannot be restarted',()=>{assert.equal(passage.leave(),true);assert.equal(passage.leave(),false);assert.equal(passage.exits,1);assert.equal(controller.yaw,Math.PI);assert.ok(director.transition.to.z>=BuildingLayout.terrace.max[2]+.7-1e-8);assert.ok(passage.phase.from.distanceTo(passage.phase.to)*1.5/passage.phase.duration<=12+1e-8);tick(4);assert.equal(state.value,'SPACE');assert.equal(group.position.x,BuildingLayout.door.center[0]);assert.ok(group.position.z>BuildingLayout.terrace.max[2]+8);});
+check('Stationary or outward-facing exit never immediately reenters',()=>{controller.forward.set(0,0,1);controller.velocity.set(0,0,6);assert.equal(passage.tryEnter(),false);tick(.5);assert.equal(state.value,'SPACE');assert.equal(passage.entries,1);});
+check('Leaving and approaching again rearms one new entry',()=>{group.position.z=11;passage.update(.01);assert.equal(passage.armed,true);approach();passage.update(.01);assert.equal(passage.entries,2);tick(3);assert.equal(state.value,'ROOM');});
+check('Desktop and narrow-view exits clear the terrace and a full capsule forward path',()=>{
+  const anchors=Object.fromEntries([...new Set(CollisionManifest.dynamic.map(p=>p.anchor))].map(k=>{const o=new Object3D();o.position.set(900,900,900);return[k,o];}));
+  const collision=new SpaceCollision(CollisionManifest,{anchors});
+  try{for(const [width,height] of [[1440,960],[1280,720],[390,844]]){
+    director.setViewport(width,height);
+    assert.equal(passage.leave(),true);const exit=passage.phase.to.clone();
+    exitViews.push({viewport:[width,height],landing:exit.toArray(),camera:director.transition.to.toArray(),duration:passage.phase.duration,yaw:controller.yaw,maximumActorSpeed:passage.phase.from.distanceTo(exit)*1.5/passage.phase.duration});
+    assert.ok(director.transition.to.z>=BuildingLayout.terrace.max[2]+.7-1e-8);
+    assert.ok(collision.canTraverse(exit,exit.clone().add(new Vector3(0,0,12)),{doorOpen:false}));
+    assert.ok(passage.phase.from.distanceTo(exit)*1.5/passage.phase.duration<=12+1e-8);
+    tick(5);assert.equal(state.value,'SPACE');assert.equal(passage.tryEnter(),false);
+    approach();passage.update(.01);tick(3);assert.equal(state.value,'ROOM');
+  }}finally{collision.dispose();}
+});
+check('Dispose stops update and callbacks without freeing borrowed scene objects',()=>{passage.dispose();assert.equal(passage.leave(),false);tick(1);assert.equal(state.value,'ROOM');assert.equal(group.isObject3D,true);});
+const report={status:'passed',method:'CPU doorway/state/lifecycle scenarios; browser transitions are verified separately',checks,exitViews};await writeFile(process.env.PASSAGE_REPORT||'tests/v12-room-passage.json',JSON.stringify(report,null,2));console.log(JSON.stringify({status:report.status,checks:checks.length}));

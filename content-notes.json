@@ -1,0 +1,365 @@
+{
+  "schemaVersion": 1,
+  "verifiedDate": "2026-10-06",
+  "person": {
+    "displayName": "Bluu",
+    "github": "https://github.com/Bluuok",
+    "role": null,
+    "email": null,
+    "resumeUrl": null,
+    "location": null,
+    "source": "E:/zzzz/personal-site/src/data/site.ts"
+  },
+  "projects": [
+    {
+      "id": "threadcove",
+      "name": "ThreadCove",
+      "kind": "project",
+      "exhibit": "research-desk",
+      "exhibitLabel": "电脑 / 研究桌",
+      "tagline": "让零散线索，长成自己的洞见。",
+      "description": "面向个人的 AI 研究工作台。从一个问题出发，在连续对话里探索资料、持续追问，把结论与文件留在独立研究档案中，随时回来继续思考。",
+      "highlights": [
+        "连续对话承接提问、流式回复与运行反馈",
+        "每项研究拥有独立会话和文件目录，支持归档后继续",
+        "Electron 与浏览器共用界面和事件协议"
+      ],
+      "tags": [
+        "个人研究",
+        "对话与资料",
+        "研究档案"
+      ],
+      "links": [
+        {
+          "label": "查看源码",
+          "url": "https://github.com/Bluuok/ThreadCove"
+        },
+        {
+          "label": "阅读说明",
+          "url": "https://github.com/Bluuok/ThreadCove#readme"
+        }
+      ],
+      "demoUrl": null,
+      "media": [
+        {
+          "src": "/assets/projects/threadcove-home.png",
+          "alt": "ThreadCove 的雾蓝色研究首页，包含研究图谱与问题输入框",
+          "caption": "从一个好问题开始。真实运行界面。",
+          "width": 1440,
+          "height": 1000,
+          "dataMode": "fixture",
+          "sourceFile": "E:/zzzz/ThreadCove/docs/images/research-home.png"
+        },
+        {
+          "src": "/assets/projects/threadcove-conversation.png",
+          "alt": "ThreadCove 研究对话界面，展示人工准备的个人知识库主题问答",
+          "caption": "沿着线索追问与整理。对话为人工准备的演示内容。",
+          "width": 1440,
+          "height": 1000,
+          "dataMode": "fixture",
+          "sourceFile": "E:/zzzz/ThreadCove/docs/images/research-conversation.png"
+        }
+      ],
+      "mediaNote": "截图来自实际运行的应用；其中的对话和文件是人工准备的演示内容，不代表在线模型研究结果。",
+      "boundaryNote": "搜索、网页阅读和子任务编排依所选后端而异；目前面向个人、本地优先的研究场景。",
+      "evidence": {
+        "localReadme": "E:/zzzz/ThreadCove/README.md",
+        "localHead": "59307df993ea18897d6804d2b22a289f7ae88eed",
+        "remote": "https://github.com/Bluuok/ThreadCove",
+        "localLicense": "Apache-2.0",
+        "licenseNote": "实际 LICENSE 为 Apache-2.0；README 的 MIT 徽标/末尾尚未同步。"
+      }
+    },
+    {
+      "id": "clawtide",
+      "name": "Clawtide",
+      "kind": "project",
+      "exhibit": "dispatch-console",
+      "exhibitLabel": "调度台",
+      "tagline": "让灵感有回响，让工作有着落。",
+      "description": "支持自托管的 AI 数字员工工作台。设定角色的工作方式，在独立工作区里组织日常对话与计划任务，通过结果和执行记录接续下一轮协作。",
+      "highlights": [
+        "工作区归拢会话与计划任务",
+        "数字员工分别配置身份、工作指引与工具规则",
+        "定时、间隔或单次任务，支持暂停、恢复与回看记录"
+      ],
+      "tags": [
+        "自托管",
+        "数字员工",
+        "计划任务"
+      ],
+      "links": [
+        {
+          "label": "查看源码",
+          "url": "https://github.com/Bluuok/Clawtide"
+        },
+        {
+          "label": "阅读说明",
+          "url": "https://github.com/Bluuok/Clawtide#readme"
+        }
+      ],
+      "demoUrl": null,
+      "media": [
+        {
+          "src": "/assets/projects/clawtide-chat.png",
+          "alt": "Clawtide 深绿与暖白的会话页，展示演示账号和预设回复",
+          "caption": "在同一处交办、阅读与继续追问。真实浏览器界面，内容为演示数据。",
+          "width": 1440,
+          "height": 960,
+          "dataMode": "fixture",
+          "sourceFile": "E:/zzzz/Clawtide/docs/assets/readme/chat.png"
+        },
+        {
+          "src": "/assets/projects/clawtide-tasks.png",
+          "alt": "Clawtide 计划任务页，左侧显示演示任务列表，右侧是海岸雕塑主视觉",
+          "caption": "把重复事项安排好。真实浏览器界面，任务为预设演示数据。",
+          "width": 1440,
+          "height": 960,
+          "dataMode": "fixture",
+          "sourceFile": "E:/zzzz/Clawtide/docs/assets/readme/tasks.png"
+        }
+      ],
+      "mediaNote": "截图使用浏览器内演示 fixtures，不调用模型、不写入应用数据，不是生产运行记录。",
+      "boundaryNote": "Web 控制台、Telegram 与飞书的接入程度分别记录；其他 IM 适配器不应统一宣称已完成真实接入。",
+      "evidence": {
+        "localReadme": "E:/zzzz/Clawtide/README.md",
+        "screenshotReadme": "E:/zzzz/Clawtide/docs/assets/readme/README.md",
+        "screenshotDate": "2026-09-29",
+        "screenshotCommit": "7ff39ba",
+        "localHead": "320ab84fac1edf60c6aa2cb987f8c99d61938ca4",
+        "remote": "https://github.com/Bluuok/Clawtide",
+        "localLicense": "MIT",
+        "attribution": "本地 LICENSE 保留 HappyClaw / riba2534 的 MIT 来源与版权。"
+      }
+    },
+    {
+      "id": "folio",
+      "name": "Folio",
+      "kind": "contribution",
+      "exhibit": "contribution-board",
+      "exhibitLabel": "贡献板",
+      "tagline": "在真实开源项目中，把边界修扎实。",
+      "description": "为 helsome/folio 的 AI 投资研究工作台提交过存储与输入边界修复，并继续贡献数据正确性改进。这里展示本人可核对的具体 PR。",
+      "highlights": [
+        "JSON 并发发布使用独立暂存文件并按目标串行替换",
+        "研究报告 ID 在持久化路径边界校验",
+        "跨币种风险权重明确数据覆盖范围"
+      ],
+      "tags": [
+        "开源贡献",
+        "存储边界",
+        "数据正确性"
+      ],
+      "links": [
+        {
+          "label": "上游项目",
+          "url": "https://github.com/helsome/folio"
+        },
+        {
+          "label": "存储修复 · 已合并",
+          "url": "https://github.com/helsome/folio/pull/109"
+        },
+        {
+          "label": "路径边界 · 已合并",
+          "url": "https://github.com/helsome/folio/pull/111"
+        },
+        {
+          "label": "币种风险 · 待合并",
+          "url": "https://github.com/helsome/folio/pull/288"
+        }
+      ],
+      "demoUrl": null,
+      "media": [
+        {
+          "src": "/assets/projects/folio-risk-after.png",
+          "alt": "Folio 组合风险组件的真实渲染截图，跨币种持仓因基币金额缺失而被明确排除",
+          "caption": "跨币种风险修复后的真实组件截图，使用受控样例，不是真实账户。对应 PR #288，当前待合并。",
+          "width": 740,
+          "height": 373,
+          "dataMode": "fixture",
+          "sourceUrl": "https://raw.githubusercontent.com/Bluuok/folio-contributions/fix/portfolio-risk-currency/docs/pr-screenshots/pr-225-after.png"
+        },
+        {
+          "src": "/assets/projects/folio-risk-partial.png",
+          "alt": "Folio 组合风险组件真实截图，仅可用持仓的百分比与全组合集中度不可用状态",
+          "caption": "无组合总市值时，明确标识仅可用持仓范围。真实组件截图，使用受控样例。",
+          "width": 740,
+          "height": 394,
+          "dataMode": "fixture",
+          "sourceUrl": "https://raw.githubusercontent.com/Bluuok/folio-contributions/fix/portfolio-risk-currency/docs/pr-screenshots/pr-225-partial.png"
+        }
+      ],
+      "mediaNote": "截图是 PR 描述公开附带的实际 PortfolioRiskPanel 渲染，使用受控样例数据；不是整套产品运行或真实券商账户证明。",
+      "boundaryNote": "Folio 为上游项目，本人的贡献范围以链接 PR 为准；本地 Yansivra 是衍生独立项目，不以其截图冒充 Folio。",
+      "contributions": [
+        {
+          "number": 109,
+          "title": "修复 JSON 并发写入共享暂存文件的问题",
+          "url": "https://github.com/helsome/folio/pull/109",
+          "author": "Bluuok",
+          "status": "merged",
+          "statusLabel": "已合并",
+          "mergedAt": "2026-09-20T07:46:45Z"
+        },
+        {
+          "number": 110,
+          "title": "修复回答代码围栏嵌套与 CRLF 解析",
+          "url": "https://github.com/helsome/folio/pull/110",
+          "author": "Bluuok",
+          "status": "merged",
+          "statusLabel": "已合并",
+          "mergedAt": "2026-09-17T03:58:23Z"
+        },
+        {
+          "number": 111,
+          "title": "拒绝报告 ID 路径穿越输入",
+          "url": "https://github.com/helsome/folio/pull/111",
+          "author": "Bluuok",
+          "status": "merged",
+          "statusLabel": "已合并",
+          "mergedAt": "2026-09-20T07:47:48Z"
+        },
+        {
+          "number": 288,
+          "title": "防止跨币种持仓扭曲风险权重与摘要",
+          "url": "https://github.com/helsome/folio/pull/288",
+          "author": "Bluuok",
+          "status": "open",
+          "statusLabel": "待合并",
+          "mergedAt": null
+        }
+      ],
+      "evidence": {
+        "repository": "helsome/folio",
+        "sourceRead": "GitHub REST pull request metadata and public PR bodies",
+        "relationship": "Bluuok 为列出的 PR 作者。",
+        "assetPermission": "用户已授权本人本地作品集复用；保留作者、出处与第三方条款，不将授权扩展为任意再分发。"
+      }
+    },
+    {
+      "id": "deerflow",
+      "name": "DeerFlow",
+      "kind": "contribution",
+      "exhibit": "contribution-board",
+      "exhibitLabel": "贡献板",
+      "tagline": "让开发指引与实际行为保持一致。",
+      "description": "为 bytedance/deer-flow 的开发文档贡献修正：核对本地服务日志位置，说明技能开关的实际端点、管理员限制与状态存储范围。两项 PR 均已合并。",
+      "highlights": [
+        "本地启动日志指引对齐真实脚本重定向",
+        "技能列表与切换路由分开说明",
+        "说明共享与按用户存储及缓存更新边界"
+      ],
+      "tags": [
+        "开源贡献",
+        "开发文档",
+        "接口说明"
+      ],
+      "links": [
+        {
+          "label": "上游项目",
+          "url": "https://github.com/bytedance/deer-flow"
+        },
+        {
+          "label": "日志指引 · 已合并",
+          "url": "https://github.com/bytedance/deer-flow/pull/6192"
+        },
+        {
+          "label": "技能文档 · 已合并",
+          "url": "https://github.com/bytedance/deer-flow/pull/6193"
+        }
+      ],
+      "demoUrl": null,
+      "media": [],
+      "mediaNote": null,
+      "boundaryNote": "这两项贡献修正文档，不宣称实现 DeerFlow 的整个 Agent 运行时或产品界面。没有来源明确的本人贡献界面截图，因此使用 PR 链接呈现。",
+      "contributions": [
+        {
+          "number": 6192,
+          "title": "修正本地开发日志位置指引",
+          "url": "https://github.com/bytedance/deer-flow/pull/6192",
+          "author": "Bluuok",
+          "status": "merged",
+          "statusLabel": "已合并",
+          "mergedAt": "2026-10-03T01:02:14Z"
+        },
+        {
+          "number": 6193,
+          "title": "修正技能开关端点与状态范围说明",
+          "url": "https://github.com/bytedance/deer-flow/pull/6193",
+          "author": "Bluuok",
+          "status": "merged",
+          "statusLabel": "已合并",
+          "mergedAt": "2026-10-03T03:33:32Z"
+        }
+      ],
+      "evidence": {
+        "repository": "bytedance/deer-flow",
+        "sourceRead": "GitHub REST pull request metadata and public PR bodies",
+        "license": "MIT",
+        "relationship": "Bluuok 为列出的 PR 作者。"
+      }
+    }
+  ],
+  "contact": {
+    "id": "contact",
+    "exhibit": "contact-card",
+    "exhibitLabel": "名片",
+    "title": "一起让想法发生",
+    "description": "源码与创作记录可从 GitHub 继续了解。简历与联系邮箱待配置。",
+    "links": [
+      {
+        "label": "GitHub",
+        "url": "https://github.com/Bluuok"
+      }
+    ],
+    "email": null,
+    "resumeUrl": null
+  },
+  "linkVerification": {
+    "date": "2026-10-06",
+    "method": "HTTP HEAD via Invoke-WebRequest (network-enabled execution)",
+    "results": [
+      {
+        "url": "https://github.com/Bluuok/ThreadCove",
+        "status": 200
+      },
+      {
+        "url": "https://github.com/Bluuok/Clawtide",
+        "status": 200
+      },
+      {
+        "url": "https://github.com/helsome/folio",
+        "status": 200
+      },
+      {
+        "url": "https://github.com/helsome/folio/pull/109",
+        "status": 200
+      },
+      {
+        "url": "https://github.com/helsome/folio/pull/111",
+        "status": 200
+      },
+      {
+        "url": "https://github.com/helsome/folio/pull/288",
+        "status": 200
+      },
+      {
+        "url": "https://github.com/bytedance/deer-flow",
+        "status": 200
+      },
+      {
+        "url": "https://github.com/bytedance/deer-flow/pull/6192",
+        "status": 200
+      },
+      {
+        "url": "https://github.com/bytedance/deer-flow/pull/6193",
+        "status": 200
+      },
+      {
+        "url": "https://github.com/Bluuok",
+        "status": 200
+      }
+    ],
+    "notes": "README 片段链接复用已验证的仓库 URL；PR #110 的元数据另经 GitHub REST 核对。"
+  }
+}

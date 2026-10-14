@@ -1,0 +1,53 @@
+import * as THREE from 'three';
+import {build} from 'esbuild';
+import {readFile,writeFile,unlink} from 'node:fs/promises';
+import {pathToFileURL} from 'node:url';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import {VortexField} from '../src/scenes/sky/VortexField.js';
+import {PaintFlowField} from '../src/scenes/sky/PaintFlowField.js';
+const report={at:new Date().toISOString(),method:'Actual rendered near-prefix topology and shared-vertex motion, plus exact RC65 far/S geometry and material isolation. CPU only.',checks:[]};
+const checkpoint=JSON.parse(await readFile('.baseline/v17-paint-blend-before.json','utf8'));
+const result=await build({stdin:{contents:checkpoint.files.find(f=>f.path.endsWith('PaintFlowField.js')).text,resolveDir:path.resolve('src/scenes/sky'),sourcefile:'prior-field.js'},bundle:true,format:'esm',platform:'node',packages:'external',write:false});
+const temporary=path.resolve(`tests/.v17-before-${process.pid}.mjs`);await writeFile(temporary,result.outputFiles[0].text);
+const {PaintFlowField:Before}=await import(pathToFileURL(temporary));
+const scene=new THREE.Scene(),vortex=new VortexField({scene}),before=new Before({scene,vortex}),after=new PaintFlowField({scene,vortex});
+const check=(name,fn)=>{const evidence=fn();report.checks.push({name,passed:true,evidence});};
+const bytes=(a,offset=0)=>Buffer.from(a.array.buffer,a.array.byteOffset+offset*a.itemSize*a.array.BYTES_PER_ELEMENT,(a.array.length-offset*a.itemSize)*a.array.BYTES_PER_ELEMENT);
+try{
+ const blend=after.telemetry.blended[0],old=before.meshes.find(m=>m.name.endsWith(':1')).geometry,g=after.meshes.find(m=>m.name.endsWith(':1')).geometry;
+ check('Far curl and S suffix preserve every actual geometry/animation byte; material unchanged',()=>{
+  const oldFar=before.meshes.find(m=>m.name.endsWith(':2')).geometry,far=after.meshes.find(m=>m.name.endsWith(':2')).geometry;
+  assert.deepEqual(far.index.array,oldFar.index.array);for(const key of Object.keys(far.attributes))assert(bytes(far.attributes[key]).equals(bytes(oldFar.attributes[key])),key);
+  for(const key of Object.keys(g.attributes))assert(bytes(g.attributes[key],blend.renderedVertices).equals(bytes(old.attributes[key],blend.sourceVertices)),key);
+  const oldIndex=old.index.array.slice(blend.sourceTriangles*3),newIndex=g.index.array.slice(blend.triangles*3);assert.equal(oldIndex.length,newIndex.length);for(let i=0;i<oldIndex.length;i++)assert.equal(newIndex[i]-blend.renderedVertices,oldIndex[i]-blend.sourceVertices);
+  for(const key of ['roughness','metalness','envMapIntensity'])assert.equal(before.material[key],after.material[key]);assert.equal(before.material.userData.paintUniforms.oilBrushAtlas.value,after.material.userData.paintUniforms.oilBrushAtlas.value);
+  return {sourceVertices:blend.sourceVertices,renderedVertices:blend.renderedVertices,sourceTriangles:blend.sourceTriangles,renderedTriangles:blend.triangles};
+ });
+ check('Rendered near surface is closed, consistently wound, and welded motion/colour remains continuous',()=>{
+  const map=new Map(),ids=[],parent=[],edges=new Map();let duplicateVertices=0,minNormalDot=1;
+  const root=x=>{while(parent[x]!==x){parent[x]=parent[parent[x]];x=parent[x];}return x;};
+  for(let i=0;i<blend.renderedVertices;i++){
+   const p=new THREE.Vector3().fromBufferAttribute(g.attributes.position,i),key=p.toArray().join(',');let record=map.get(key);
+   if(!record){record={id:parent.length,vertex:i};map.set(key,record);parent.push(record.id);}else{
+    duplicateVertices++;for(const name of ['flowAxis','flowMotion','color']){const a=g.attributes[name];for(let k=0;k<a.itemSize;k++)assert.equal(a.array[i*a.itemSize+k],a.array[record.vertex*a.itemSize+k],name);}
+   }
+   ids.push(record.id);
+  }
+  const a=new THREE.Vector3(),b=new THREE.Vector3(),c=new THREE.Vector3(),normal=new THREE.Vector3(),average=new THREE.Vector3();let degenerate=0,tinyTriangles=0,signedVolume=0;
+  for(let i=0;i<blend.triangles*3;i+=3){const indices=[g.index.getX(i),g.index.getX(i+1),g.index.getX(i+2)],v=indices.map(x=>ids[x]);
+   a.fromBufferAttribute(g.attributes.position,indices[0]);b.fromBufferAttribute(g.attributes.position,indices[1]);c.fromBufferAttribute(g.attributes.position,indices[2]);signedVolume+=a.dot(new THREE.Vector3().crossVectors(b,c))/6;normal.crossVectors(b.sub(a),c.sub(a));if(normal.lengthSq()<1e-12)tinyTriangles++;if(normal.lengthSq()===0)degenerate++;else{average.set(0,0,0);for(const j of indices)average.add(new THREE.Vector3().fromBufferAttribute(g.attributes.normal,j));minNormalDot=Math.min(minNormalDot,normal.normalize().dot(average.normalize()));}
+   for(let j=0;j<3;j++){const x=v[j],y=v[(j+1)%3],key=x<y?`${x}:${y}`:`${y}:${x}`,edge=edges.get(key)||{count:0,balance:0};edge.count++;edge.balance+=x<y?1:-1;edges.set(key,edge);parent[root(x)]=root(y);}
+  }
+  const badEdges=[...edges.entries()].filter(([,e])=>e.count!==2||e.balance!==0),components=new Set(parent.map((_,i)=>root(i))).size;
+  report.topology={vertices:parent.length,duplicateVertices,triangles:blend.triangles,badEdges:badEdges.slice(0,12),badEdgeCount:badEdges.length,components,degenerate,tinyTriangles,signedVolume,minNormalDot};
+  assert.equal(badEdges.length,0);assert.equal(degenerate,0);assert(signedVolume>0);assert.equal(components,1);
+  // Smooth averaged normals do not certify polygon winding at concave creases.
+  // Positional edge balance plus positive enclosed signed volume does. Tiny
+  // nonzero faces are reported separately from actual collapsed faces.
+  return report.topology;
+ });
+ check('Flow projection has no angular UV cut on actual triangle edges',()=>{let maxVGradient=0;for(let i=0;i<blend.triangles*3;i+=3)for(let edge=0;edge<3;edge++){const a=g.index.getX(i+edge),b=g.index.getX(i+(edge+1)%3),p=new THREE.Vector3().fromBufferAttribute(g.attributes.position,a),q=new THREE.Vector3().fromBufferAttribute(g.attributes.position,b),distance=p.distanceTo(q);maxVGradient=Math.max(maxVGradient,Math.abs(g.attributes.uv.getY(a)-g.attributes.uv.getY(b))/distance);}assert(maxVGradient<1);return {maxVGradient};});
+ report.status='passed';
+}catch(error){report.status='failed';report.failure=error.stack;process.exitCode=1;}
+finally{before.dispose();after.dispose();vortex.dispose();await unlink(temporary);await writeFile('tests/v17-blend-structure.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report));}

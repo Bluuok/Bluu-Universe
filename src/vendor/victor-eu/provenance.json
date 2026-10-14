@@ -1,0 +1,21 @@
+{
+  "repository": "https://github.com/Victor-EU/the-world-of-van-gogh",
+  "commit": "8cb50612e5769229da3781679cb3dc1b06d3d441",
+  "license": "MIT",
+  "author": "Victor Zhang (Victor-EU)",
+  "upstreamHashes": {
+    "src/brush.js": "60b7984941f8897b9af3cc3174133386f32c7dcefe781fb98d2aa7adcb5944a2",
+    "src/util.js": "0031d6e5f1715cee81207c3f83ac0305f0a2362316d9d9e71412ad7040d318c4",
+    "LICENSE": "9c7050eb85affbe9122e6808fb25ce52a776016dd6a4efb167340bb911a71caf"
+  },
+  "extraction": {
+    "brushAtlas.js": "src/brush.js lines 1-78: makeBrushAtlas and BRUSH_ROWS; original generator retained",
+    "util.js": "src/util.js lines 1-41: clamp/lerp/smoothstep/rng/hash2/noise2"
+  },
+  "integration": "VortexField owns one shared data texture, calls actual upstream generator; local surface sampler adapts atlas channel usage to current MeshStandardMaterial. Upstream shader lighting, sky/world, camera, renderer, RAF and UI are not imported.",
+  "extractedHashes": {
+    "brushAtlas.js": "59b71c6b15b60586613adc68cd08942eaab36a5b76af9113596157f08aa42fc5",
+    "util.js": "2b60b201af7b1d8b8001628a1d5ed87f140c8b7b7661a66dd728acc1deefcebc",
+    "LICENSE.txt": "9c7050eb85affbe9122e6808fb25ce52a776016dd6a4efb167340bb911a71caf"
+  }
+}

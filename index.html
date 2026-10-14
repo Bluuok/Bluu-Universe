@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071a33"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ctext y=%2227%22 font-size=%2230%22 fill=%22%23e6bc75%22%3E✳%3C/text%3E%3C/svg%3E"><title>Bluu Universe</title></head><body>
+<canvas id="world" aria-label="可互动的星海与工作室"></canvas>
+<div id="loading"><span class="orbit-loader"></span><p>正在点亮星港</p><small>星海、工作室与一些值得探索的作品</small></div>
+<header><a class="brand" href="#" aria-label="Bluu Universe 首页"><span class="brand-star">✳</span><span>Bluu Universe<small>BLUU UNIVERSE / PORTFOLIO</small></span></a><nav><button id="project-toggle">作品目录 <span>↗</span></button><button id="sound" aria-pressed="false" title="主动开启轻交互音效">音效关闭</button></nav></header>
+<div id="space-copy"><p class="eyebrow"><i></i>一间漂浮在星海里的工作室</p><h1>循着星光，<br>来坐一会儿。</h1><p class="intro">在想法与实践之间，<br>把有趣的事情做成可用的作品。</p></div>
+<div id="flight-guide" hidden><small id="guide-progress">循云环游</small><span id="guide-target">云门</span></div><div id="flight-reticle" hidden aria-hidden="true"><i></i></div>
+<div id="location"><span class="location-dot"></span><span id="location-text">星海 · 自由漫游</span><small id="state-indicator">蓝金星海</small></div>
+<div id="entry"><p id="entry-hint">前方暖光，是工作室的入口</p><span id="enter">飞入门廊 · 自动进屋 <span>↗</span></span></div>
+<div id="room-toolbar" hidden><span>点击房间里的展品，看看它们的故事</span><button id="exit">返回星海 ↗</button></div>
+<div id="hotspot-label" hidden></div><div id="hotspots"></div>
+<div id="controls"><span><kbd>WASD</kbd> 前后左右 · <kbd>X</kbd> 刹车</span><span>点击画面操控 · 鼠标转向 · Esc 释放</span><span>空格 / Shift 升降 · 右键拖动也可转向</span><button id="pause-flight" aria-pressed="false">暂停</button><button id="look-mode" aria-pressed="false">开始操控</button><button id="reset-view">回到入口</button></div>
+<div id="mobile-controls"><div class="dpad"><button data-move="KeyW">↑</button><button data-move="KeyA">←</button><button data-move="KeyS" aria-label="后退">↓</button><button data-move="KeyD">→</button></div><div class="altitude"><button data-move="Space">＋</button><button data-move="ShiftLeft">－</button></div></div>
+<aside id="catalog" hidden><div class="catalog-title"><span>作品航线</span><button id="catalog-close" aria-label="关闭作品目录">×</button></div><div id="catalog-items"></div><p>随时直达项目，也可以进屋慢慢看。</p></aside>
+<section id="project-panel" hidden role="dialog" aria-modal="true" aria-labelledby="project-title">
+  <div class="book-heading"><span>BLUU UNIVERSE <i>／</i> 作品手记</span><button id="project-close" aria-label="合上项目册并返回全景">×</button></div>
+  <div class="book-tabs" aria-label="项目册章节"><button data-book-page="0" aria-pressed="true">概览</button><button data-book-page="1" aria-pressed="false">细节</button><button data-book-page="2" aria-pressed="false">链接</button></div>
+  <div class="book-spread">
+    <div class="book-page book-left"><p id="project-category" class="eyebrow"></p><h2 id="project-title"></h2><p id="project-summary"></p><figure><img id="project-image" alt="真实项目截图" hidden><div class="book-empty" aria-hidden="true">✳<span>IDEAS INTO ORBIT</span></div><figcaption id="book-caption"></figcaption></figure><span class="book-imprint">星港工作室 · PROJECT ARCHIVE</span></div>
+    <div class="book-page book-right"><p class="book-section-label">FIELD NOTES</p><h3 id="book-section">作品概览</h3><div id="project-details"></div><p id="book-links-note"></p><div id="project-links"></div></div>
+    <div class="book-turn" hidden aria-hidden="true" inert></div>
+  </div>
+  <div class="book-navigation"><button id="project-back">← 合上，返回全景</button><div><button id="book-prev" aria-label="上一页">←</button><span id="book-page-label" role="status" aria-live="polite">01 — 02 / 06</span><button id="book-next" aria-label="下一页">→</button></div></div>
+</section>
+<div id="transition" aria-hidden="true"><span>欢迎来到工作室</span></div><div id="toast" role="status"></div>
+<footer><span>慢慢探索，灵感正在靠港。</span><span>01 / 星港漫游</span></footer>
+<script type="module" src="/src/main.js"></script></body></html>
+

@@ -1,0 +1,23 @@
+import {chromium} from '@playwright/test';
+import assert from 'node:assert/strict';
+import {mkdir,writeFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+const out=process.env.GOAL_INPUT_OUT||'screenshots/v13-rc61-input';await mkdir(out,{recursive:true});
+const report={started:new Date().toISOString(),method:'Installed headed Chrome, trusted browser keys/clicks and attempted browser-tab focus change. Telemetry read-only; actual blur is only verified if observed; no OS-window focus claim.',checks:[],errors:[]};
+const browser=await chromium.launch({headless:false,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',args:['--use-angle=d3d11','--disable-background-timer-throttling']}),context=await browser.newContext({viewport:{width:1440,height:960}}),page=await context.newPage();
+const snap=()=>page.evaluate(()=>({state:starhaven.state,keys:starhaven.keys,velocity:starhaven.velocity,player:starhaven.player,paused:starhaven.flight.paused,project:starhaven.currentProject,hidden:document.hidden,focused:document.hasFocus()}));
+const stable=s=>page.waitForFunction(state=>starhaven.state===state&&!starhaven.cameraProgress.transition,s);
+page.on('pageerror',e=>report.errors.push(e.message));
+try{
+ await page.goto('http://127.0.0.1:4259/');await page.waitForFunction(()=>window.starhaven?.ready);await page.locator('#loading').waitFor({state:'hidden'});const bundle=await page.locator('script[src*="/assets/index-"]').getAttribute('src');report.build={bundle,sha256:createHash('sha256').update(Buffer.from(await(await fetch(new URL(bundle,page.url()))).arrayBuffer())).digest('hex')};
+ await page.mouse.move(720,480);await page.keyboard.down('w');await page.waitForTimeout(350);const moving=await snap();assert.ok(Math.hypot(...moving.velocity)>0);
+ const other=await context.newPage();await other.goto('about:blank');await other.bringToFront();await page.waitForTimeout(300);const background=await snap();
+ await page.keyboard.up('w');await other.close();await page.bringToFront();
+ if(background.hidden||!background.focused){assert.deepEqual(background.keys,[]);assert.equal(Math.hypot(...background.velocity),0);assert.equal(background.paused,true);report.checks.push({name:'Actual tab blur while W held clears keys and velocity',moving,background});}
+ else report.unverified=[{name:'Actual browser-tab and OS-window focus loss',reason:'Installed headed Chrome target remained visible and focused after another tab was brought forward; no actual blur occurred, so no focus-loss pass is claimed.',moving,background}];
+ await page.keyboard.press('h');await page.mouse.move(720,480);await page.locator('#project-toggle').click();await page.keyboard.down('w');await page.locator('#catalog-items button').first().click();await page.keyboard.up('w');await page.keyboard.down('d');await page.waitForTimeout(150);await page.keyboard.up('d');await stable('PROJECT');const first=await snap();assert.deepEqual(first.keys,[]);assert.equal(Math.hypot(...first.velocity),0);
+ await page.locator('#project-toggle').click();await page.locator('#catalog-items button').nth(1).click();await stable('PROJECT');const second=await snap();assert.notEqual(first.project,second.project);await page.locator('#project-close').click();await stable('SPACE');report.checks.push({name:'Catalog switch, transition input and project close',first,second,returned:await snap()});
+ let aborted=0;await page.route('**/assets/projects/*.png',r=>{aborted++;return r.abort();});await page.reload();await page.waitForFunction(()=>window.starhaven?.ready);await page.locator('#loading').waitFor({state:'hidden'});await page.locator('#project-toggle').click();await page.locator('#catalog-items button').first().click();await stable('PROJECT');await page.waitForFunction(()=>document.getElementById('project-image').hidden);assert.ok(aborted>0);assert.ok((await page.locator('#project-summary').innerText()).length>10);assert.ok(await page.locator('#project-links a').count());report.checks.push({name:'Failed project screenshot keeps readable content and links',aborted});await page.screenshot({path:`${out}/missing-project-image.png`});
+ await page.locator('#project-close').click();await stable('SPACE');assert.deepEqual(report.errors,[]);report.status='passed';
+}catch(error){report.status='failed';report.failure=error.stack;process.exitCode=1;await page.screenshot({path:`${out}/failure.png`}).catch(()=>{});}
+finally{await page.keyboard.up('w').catch(()=>{});await page.keyboard.up('d').catch(()=>{});await browser.close();report.browserClosed=true;report.finished=new Date().toISOString();await writeFile(process.env.GOAL_INPUT_REPORT||'tests/v13-rc61-input.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report));}

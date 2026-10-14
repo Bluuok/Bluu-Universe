@@ -1,0 +1,107 @@
+{
+  "sourceRepository": "https://github.com/hh-hang/three-player-controller",
+  "sourceCommit": "ca82bbc76a3b9b0afa80c73b60167adf6123b9b6",
+  "sourceVersion": "0.6.2",
+  "conversion": {
+    "tool": "esbuild",
+    "version": "0.24.2",
+    "options": {
+      "loader": "ts",
+      "format": "esm",
+      "target": "es2022",
+      "minify": false,
+      "legalComments": "none"
+    },
+    "algorithmEdits": 0,
+    "scope": "capsuleCollision.js and colliderBuild.js only; cameraRaycast.js is an explicit adapted extraction described in cameraRaycast."
+  },
+  "capsule": {
+    "sourcePath": "src/utils/capsuleCollision.ts",
+    "sourceEncoding": "utf-8",
+    "sourceSha256": "3f0eec859464a9af55275eaf29c3b4215724aaec313b4238a64f19fd567ce37d",
+    "selectedLines": [
+      "1",
+      "59-68",
+      "251-295"
+    ],
+    "selectedTextSha256": "96557cef836be8d85deb062d015a8b71629b30533ab4ef35ce477c786faf6b61",
+    "outputSha256": "b288483bcd81e33843359ef23cf571e3322cf99376bfd2a0c249162da51fbe36"
+  },
+  "builder": {
+    "sourcePath": "src/collision/colliderBuild.ts",
+    "sourceEncoding": "utf-8",
+    "sourceSha256": "5263a9dd0eaf93a967f2c42dbb52047d5b1d3e57897a723db94ec5f8fb498e71",
+    "outputSha256": "02d53e297dd0c2a4ab27b5935f16de1f62e57297408202d0d31904182ac21cd1"
+  },
+  "license": {
+    "originalByteCopy": true,
+    "sha256": "14fafdcdf5295edb55c525ab13a5db45c75407566cf0cb1f4301ddee999662fc"
+  },
+  "smokeVersions": {
+    "three": "0.161.0",
+    "three-mesh-bvh": "0.7.8"
+  },
+  "deliverables": {
+    "capsule": "capsuleCollision.js",
+    "builder": "colliderBuild.js",
+    "license": "LICENSE.three-player-controller.txt",
+    "cameraRaycast": "cameraRaycast.js"
+  },
+  "smoke": {
+    "executionDirectory": "E:/temp/starhaven-collision-smoke",
+    "versions": {
+      "node": "v24.21.0",
+      "three": "161",
+      "bvh": "0.7.8"
+    },
+    "summary": {
+      "passed": 17,
+      "failed": 0
+    },
+    "behaviorChecks": 14,
+    "limitationChecks": 3,
+    "browserResolution": {
+      "resolver": {
+        "platform": "browser",
+        "mainFields": [
+          "browser",
+          "module",
+          "main"
+        ],
+        "esbuild": "0.24.2"
+      },
+      "threeBuilds": [
+        "E:/temp/starhaven-collision-smoke/node_modules/three/build/three.module.js"
+      ],
+      "bvhEntrypoints": [
+        "E:/temp/starhaven-collision-smoke/node_modules/three-mesh-bvh/src/index.js"
+      ],
+      "unexpectedControllerOrWorkerInputs": []
+    },
+    "reproducibleCommands": [
+      "npm ci --ignore-scripts --no-audit --no-fund",
+      "node \"C:/Users/ertstyuqk/Documents/Codex/2026-10-06/task-2/collision-smoke-staging/browser-resolved-smoke.cjs\"",
+      "node smoke.browser-resolved.mjs"
+    ],
+    "scope": "CPU geometry/collision compatibility of these exact two source leaves; no browser/WebGL or full controller smoke performed."
+  },
+  "limitations": {
+    "bareNodeImport": "three-mesh-bvh 0.7.8 has main=build/index.umd.cjs and module=src/index.js; bare Node ESM loads the CJS entry and both Three CJS/ESM class identities. The browser module resolver selects the ESM entry and one Three build. Geometry checks pass in both; bare Node identity check fails as preserved in bare-node-results.json.",
+    "npmDeprecation": "three-mesh-bvh@0.7.8 is marked Deprecated due to three.js version incompatibility. Please use v0.8.0, instead. No version was substituted; only the exact Three161/BVH078 leaves were smoke tested.",
+    "solverRequirements": [
+      "Separate unit-scale upright capsule proxy; segment.start=(0,0,0); proxy has no transformed parent.",
+      "Bake source geometry transforms and keep output collider scale=1.",
+      "Refresh proxy and collider matrixWorld before each query.",
+      "Valid non-overlapping initial pose and bounded steps; zero-distance/deep existing overlap is not guaranteed to resolve.",
+      "Position correction only: integration adapter remains responsible for inward velocity, bounds and state gating."
+    ],
+    "rawNodeClassIssueIsNotSeparateInstalledThreeVersion": true
+  },
+  "cameraRaycast": {
+    "sourcePath": "src/systems/CameraSystem.ts",
+    "selectedLines": "344-359",
+    "sourceSha256": "a6b5fffd1eb7915f14d718980572f15ba29f147fbeb864dae45e1d63de79b619",
+    "outputSha256": "9ec56ce9129b64552cf92f31d5ebff0191b74e596a0ab060f32200cd3c24d1a3",
+    "adaptation": "Extracted closest-hit loop; ctrl/vehicle filtering replaced by explicit active mesh list. New five-ray clearance and view reframing are local CameraAvoidance, not the original updateWithRaycast or full CameraSystem."
+  }
+}

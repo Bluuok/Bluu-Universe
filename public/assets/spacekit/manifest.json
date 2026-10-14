@@ -1,0 +1,210 @@
+{
+  "author": "Quaternius",
+  "pack": "Ultimate Space Kit (March 2023)",
+  "source": "https://quaternius.com/packs/ultimatespacekit.html",
+  "authorDistribution": "https://poly.pizza/bundle/Ultimate-Space-Kit-YWh743lqGX",
+  "download": "https://opengameart.org/sites/default/files/ultimate_space_kit-glb.zip",
+  "redistributionPage": "https://opengameart.org/content/ultimate-space-kit-by-quaternius",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "downloadedAt": "2026-10-06",
+  "models": {
+    "asteroid-large.glb": {
+      "url": "/assets/spacekit/asteroid-large.glb",
+      "originalName": "Rock Large.glb",
+      "bytes": 18608,
+      "triangles": 222,
+      "sha256": "c4e9f04c04419e67e919c4533dfd6044abc5f0640afa9d0e174cf474285d380c",
+      "animations": [],
+      "positionBounds": [
+        {
+          "min": [
+            -0.0384892709553242,
+            -0.00315511273220181,
+            -0.0402524545788765
+          ],
+          "max": [
+            0.0382175110280514,
+            0.0297299567610025,
+            0.0330723486840725
+          ]
+        }
+      ],
+      "nodes": [
+        "RootNode",
+        "Rock_Large_1"
+      ]
+    },
+    "asteroid-small.glb": {
+      "url": "/assets/spacekit/asteroid-small.glb",
+      "originalName": "Rock.glb",
+      "bytes": 18076,
+      "triangles": 210,
+      "sha256": "c601f06428037dca25ca91d31f9923df8f9aaeeec90506d9329f7214568e9caf",
+      "animations": [],
+      "positionBounds": [
+        {
+          "min": [
+            -0.0177621990442276,
+            -0.00473492033779621,
+            -0.0118832224979997
+          ],
+          "max": [
+            0.00965606980025768,
+            0.0223753806203604,
+            0.0133019061759114
+          ]
+        }
+      ],
+      "nodes": [
+        "RootNode",
+        "Rock_2"
+      ]
+    },
+    "plant.glb": {
+      "url": "/assets/spacekit/plant.glb",
+      "originalName": "Plant.glb",
+      "bytes": 17356,
+      "triangles": 196,
+      "sha256": "d8d3e6594fe97cbe1f78cb3017539d18c00c885da210dee896ec33e387fc097c",
+      "animations": [],
+      "positionBounds": [
+        {
+          "min": [
+            -0.0055469605140388,
+            -0.0000177437032107264,
+            -0.00514341099187732
+          ],
+          "max": [
+            0.00501979934051633,
+            0.0197242498397827,
+            0.00495641492307186
+          ]
+        }
+      ],
+      "nodes": [
+        "RootNode",
+        "Plant_2"
+      ]
+    },
+    "spiral-tree.glb": {
+      "url": "/assets/spacekit/spiral-tree.glb",
+      "originalName": "Tree Spiral.glb",
+      "bytes": 35944,
+      "triangles": 748,
+      "sha256": "16b571e404dff48380d8289a92596d41a5b49e75fae9e0151d1a3fc1fc0a4e86",
+      "animations": [],
+      "positionBounds": [
+        {
+          "min": [
+            -0.00742496410384774,
+            -0.0000545131479157135,
+            -0.00682327384129167
+          ],
+          "max": [
+            0.0162121579051018,
+            0.0448584482073784,
+            0.0154523644596338
+          ]
+        }
+      ],
+      "nodes": [
+        "RootNode",
+        "Tree_Spiral_1"
+      ]
+    },
+    "antenna.glb": {
+      "url": "/assets/spacekit/antenna.glb",
+      "originalName": "Roof Antenna.glb",
+      "bytes": 29380,
+      "triangles": 492,
+      "sha256": "26a099187aae0bcef5f189065ef7a57da559c53723a049a98053f24f75855cb0",
+      "animations": [],
+      "positionBounds": [
+        {
+          "min": [
+            -0.00706044025719166,
+            0.0406771041452885,
+            -0.00716261612251401
+          ],
+          "max": [
+            0.00705676199868321,
+            0.0761051252484322,
+            0.00717236567288637
+          ]
+        }
+      ],
+      "nodes": [
+        "RootNode",
+        "Roof_Antenna"
+      ]
+    },
+    "solar-panel.glb": {
+      "url": "/assets/spacekit/solar-panel.glb",
+      "originalName": "Solar Panel.glb",
+      "bytes": 43724,
+      "triangles": 812,
+      "sha256": "2e7d429ad216bb8d2ac08d6d11c4d56359264ee1067d8b32726c387f284dd2ff",
+      "animations": [],
+      "positionBounds": [
+        {
+          "min": [
+            -0.013635128736496,
+            0.0357604622840881,
+            -0.00805853214114904
+          ],
+          "max": [
+            0.013635128736496,
+            0.0527668260037899,
+            0.00927544943988323
+          ]
+        }
+      ],
+      "nodes": [
+        "RootNode",
+        "SolarPanel_Roof"
+      ]
+    },
+    "floating-robot.glb": {
+      "url": "/assets/spacekit/floating-robot.glb",
+      "originalName": "Enemy Flying.glb",
+      "bytes": 205104,
+      "triangles": 3820,
+      "sha256": "3819a4914bb8216c60cbd51df63893c5975c0786f99f9b35dfb2bdec07caa25a",
+      "animations": [
+        "CharacterArmature|Death",
+        "CharacterArmature|Fast_Flying",
+        "CharacterArmature|Flying_Idle",
+        "CharacterArmature|Headbutt",
+        "CharacterArmature|HitReact",
+        "CharacterArmature|No",
+        "CharacterArmature|Punch",
+        "CharacterArmature|Yes"
+      ],
+      "positionBounds": [
+        {
+          "min": [
+            -0.00615786202251911,
+            -0.00629801535978913,
+            0.00523613393306732
+          ],
+          "max": [
+            0.00641050701960921,
+            0.00607058452442288,
+            0.0423098877072334
+          ]
+        }
+      ],
+      "nodes": [
+        "RootNode",
+        "CharacterArmature",
+        "Root",
+        "Torso",
+        "Neck",
+        "Head",
+        "Head_end",
+        "Enemy_Flying"
+      ]
+    }
+  }
+}

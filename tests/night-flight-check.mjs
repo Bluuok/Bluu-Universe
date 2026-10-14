@@ -1,0 +1,45 @@
+import assert from 'node:assert/strict';
+import {writeFile,readFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import * as THREE from 'three';
+import {SpaceController} from '../src/core/SpaceController.js';
+import {SpaceCollision} from '../src/core/SpaceCollision.js';
+import {CollisionManifest} from '../src/config/CollisionManifest.js';
+import {AssetManifest} from '../src/config/AssetManifest.js';
+import {ExplorationRoute,ExplorationRocks} from '../src/config/ExplorationManifest.js';
+globalThis.window=new EventTarget();globalThis.document=new EventTarget();
+const state={moving:true,value:'SPACE',onChange:()=>{}},object=new THREE.Object3D();
+let allowed=true;const controller=new SpaceController({object,state,flight:AssetManifest.space.flight,bounds:AssetManifest.space.bounds,canMove:()=>allowed,onEnter:()=>{}});
+const checks=[],check=(name,fn)=>{fn();checks.push({name,status:'passed'});};
+const tick=(seconds)=>{for(let i=0;i<seconds*60;i++)controller.update(1/60,i/60);};
+function key(type,code,repeat=false){const event=new Event(type);Object.defineProperties(event,{code:{value:code},repeat:{value:repeat}});window.dispatchEvent(event);}
+const reset=()=>{controller.clear();controller.resetHeading();object.position.set(0,0,0);};
+check('default stationary without W',()=>{tick(2);assert.equal(object.position.length(),0);});
+check('ordinary free mouse turns yaw and pitch without translating',()=>{controller.lookDelta(210,-210);tick(1);assert.ok(controller.yaw<.1&&controller.pitch>.2);assert.equal(object.position.length(),0);});
+check('Stopping the mouse immediately holds heading without recentering',()=>{const y=controller.yaw,p=controller.pitch;tick(1);assert.equal(controller.yaw,y);assert.equal(controller.pitch,p);});
+check('W accelerates along complete 3D heading',()=>{controller.setKey('KeyW',true);tick(2);assert.ok(controller.velocity.y>1);assert.ok(controller.velocity.clone().normalize().dot(controller.forward)>.999);assert.equal(controller.thrust,1);});
+check('release keeps a short coast and settles within one second',()=>{const direction=controller.velocity.clone().normalize(),p=object.position.clone();controller.setKey('KeyW',false);tick(.2);assert.ok(controller.velocity.length()>2&&controller.velocity.length()<7);assert.ok(controller.velocity.dot(direction)>0);assert.equal(controller.thrust,0);tick(.8);assert.equal(controller.velocity.length(),0);const distance=object.position.distanceTo(p);assert.ok(distance>1.2&&distance<2.2,`Release drift ${distance}m`);});
+check('X stops faster and closer than the unpowered coast',()=>{reset();controller.setKey('KeyW',true);tick(2);const p=object.position.clone();controller.setKey('KeyW',false);controller.setKey('KeyX',true);tick(.35);assert.equal(controller.velocity.length(),0);assert.ok(object.position.distanceTo(p)<1.5);});
+check('short-coast distance is consistent at 30, 60 and 144Hz',()=>{const distances=[];for(const hz of [30,60,144]){reset();controller.velocity.set(0,0,-12);for(let i=0;i<hz;i++)controller.update(1/hz,i/hz);assert.equal(controller.velocity.length(),0);distances.push(object.position.length());}assert.ok(Math.max(...distances)-Math.min(...distances)<.2);reset();});
+check('X brakes without reversing',()=>{const direction=controller.velocity.clone().normalize();controller.setKey('KeyX',true);tick(1);assert.equal(controller.velocity.length(),0);tick(1);assert.equal(controller.velocity.dot(direction),0);});
+check('X takes precedence over W',()=>{controller.setKey('KeyW',true);tick(1);assert.equal(controller.velocity.length(),0);assert.equal(controller.thrust,0);});
+check('S moves backwards and opposing WASD cancel',()=>{reset();controller.setKey('KeyS',true);tick(1);assert.ok(controller.velocity.clone().normalize().dot(controller.forward)<-.999);controller.clear();controller.setKey('KeyW',true);controller.setKey('KeyS',true);tick(1);assert.equal(controller.velocity.length(),0);reset();});
+check('WASD diagonals are normalized and rise uses authored vertical speed',()=>{reset();controller.setKey('KeyW',true);controller.setKey('KeyD',true);tick(1);assert.ok(Math.abs(controller.velocity.length()-12)<1e-8);reset();controller.setKey('Space',true);tick(1);assert.ok(Math.abs(controller.velocity.y-7)<1e-8);reset();});
+check('Relative look has no speed cap and is independent of event packet size',()=>{reset();controller.lookDelta(1200,-100);const yaw=controller.yaw,pitch=controller.pitch;reset();for(let i=0;i<12;i++)controller.lookDelta(100,-100/12);assert.ok(Math.abs(controller.yaw-yaw)<1e-10);assert.ok(Math.abs(controller.pitch-pitch)<1e-10);assert.ok(Math.abs(Math.atan2(Math.sin(yaw-.47),Math.cos(yaw-.47)))>2.8);reset();});
+check('UI clear cannot be undone by held-key repeat',()=>{reset();key('keydown','KeyW');tick(.3);controller.clear();key('keydown','KeyW',true);tick(.3);assert.equal(controller.velocity.length(),0);assert.equal(controller.keys.size,0);key('keyup','KeyW');key('keydown','KeyW');tick(.3);assert.ok(controller.velocity.length()>0);});
+check('paused movement clears all keys and steering',()=>{allowed=false;controller.steer.set(1,1);tick(.1);assert.equal(controller.velocity.length(),0);assert.equal(controller.keys.size,0);assert.equal(controller.steer.length(),0);allowed=true;});
+check('blur clears movement and steering',()=>{reset();controller.setKey('KeyW',true);controller.lookDelta(100,100);tick(.2);window.dispatchEvent(new Event('blur'));assert.equal(controller.velocity.length(),0);assert.equal(controller.keys.size,0);assert.equal(controller.steer.length(),0);});
+check('flight never rolls',()=>{reset();controller.lookDelta(280,-280);controller.setKey('KeyW',true);tick(5);assert.equal(object.rotation.z,0);assert.equal(object.rotation.x,0);});
+check('powered moderate turn recovers direction without a long side skid',()=>{reset();controller.resetHeading(0);controller.setKey('KeyW',true);tick(2);controller.resetHeading(Math.PI/4);tick(.25);const error=controller.velocity.clone().normalize().angleTo(controller.forward);assert.ok(error<22*Math.PI/180, error*180/Math.PI);});
+check('expanded boundary slows before numerical clamp',()=>{reset();controller.resetHeading(-Math.PI/2);const edge=AssetManifest.space.bounds.max[0];object.position.set(edge-25,0,0);controller.setKey('KeyW',true);tick(15);assert.ok(object.position.x<edge);assert.ok(controller.velocity.x<.03);assert.ok(object.position.x>edge-1);});
+const anchors=Object.fromEntries([...new Set(CollisionManifest.dynamic.map(p=>p.anchor))].map(k=>{const a=new THREE.Object3D();a.position.set(900,900,900);return[k,a];}));
+const collision=new SpaceCollision(CollisionManifest,{anchors});
+try{
+ check('flight volume matches measured short segment and full pose radius',()=>{const c=CollisionManifest.capsule;assert.ok(Math.abs(c.radius+c.footOffsetY-.82)<1e-9);assert.ok(Math.abs(c.radius+c.footOffsetY+c.segmentLength-.96)<1e-9);assert.ok(c.radius+c.skin>.936443);});
+ check('confirmed docking uses the preserved narrow upright probe',()=>{assert.ok(collision.canTraverse(new THREE.Vector3(1.35,1.15,8.2),new THREE.Vector3(1.35,1.15,3.2),{doorOpen:true,docking:true}));assert.equal(collision.lastTraversal.pose,'upright-confirmed-docking');assert.equal(collision.capsuleInfo.radius,1.012);});
+ check('manual flight cannot pass through the closed door',()=>assert.equal(collision.canTraverse(new THREE.Vector3(1.35,1.15,8.2),new THREE.Vector3(1.35,1.15,3.2),{doorOpen:false}),false));
+ check('explorable physical rocks have authored collision proxies',()=>{for(const rock of ExplorationRocks)assert.ok(CollisionManifest.static.some(c=>c.id==='circuit-'+rock.id));});
+ check('all circuit landmarks sit comfortably within flyable space',()=>{for(const p of ExplorationRoute)for(let axis=0;axis<3;axis++)assert.ok(p.position[axis]>AssetManifest.space.bounds.min[axis]+20&&p.position[axis]<AssetManifest.space.bounds.max[axis]-20);});
+}finally{collision.dispose();}
+const html=await readFile('dist/index.html','utf8'),bundle=html.match(/assets\/(index-[^" ]+\.js)/)[1],report={checks,method:'CPU control and production capsule checks; not browser-playtest evidence',bundle,sha256:createHash('sha256').update(await readFile('dist/assets/'+bundle)).digest('hex')};
+await writeFile(process.env.FLIGHT_REPORT||'tests/v11-rc6-flight.json',JSON.stringify(report,null,2));console.log(JSON.stringify({passed:checks.length,bundle}));
