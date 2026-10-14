@@ -20,3 +20,4 @@
 **/*.pid
 **/*credential*
 **/*token*
+/tests/.*

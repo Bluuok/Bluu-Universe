@@ -7,16 +7,18 @@ import assert from 'node:assert/strict';
 import {VortexField} from '../src/scenes/sky/VortexField.js';
 import {PaintFlowField} from '../src/scenes/sky/PaintFlowField.js';
 const report={at:new Date().toISOString(),method:'Actual rendered near-prefix topology and shared-vertex motion, plus exact RC65 far/S geometry and material isolation. CPU only.',checks:[]};
-const checkpoint=JSON.parse(await readFile('.baseline/v17-paint-blend-before.json','utf8'));
-const result=await build({stdin:{contents:checkpoint.files.find(f=>f.path.endsWith('PaintFlowField.js')).text,resolveDir:path.resolve('src/scenes/sky'),sourcefile:'prior-field.js'},bundle:true,format:'esm',platform:'node',packages:'external',write:false});
-const temporary=path.resolve(`tests/.v17-before-${process.pid}.mjs`);await writeFile(temporary,result.outputFiles[0].text);
-const {PaintFlowField:Before}=await import(pathToFileURL(temporary));
-const scene=new THREE.Scene(),vortex=new VortexField({scene}),before=new Before({scene,vortex}),after=new PaintFlowField({scene,vortex});
+const checkpoint=await readFile('.baseline/v17-paint-blend-before.json','utf8').then(JSON.parse).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
+const temporary=path.resolve(`tests/.v17-before-${process.pid}.mjs`);let Before;
+if(checkpoint){
+ const result=await build({stdin:{contents:checkpoint.files.find(f=>f.path.endsWith('PaintFlowField.js')).text,resolveDir:path.resolve('src/scenes/sky'),sourcefile:'prior-field.js'},bundle:true,format:'esm',platform:'node',packages:'external',write:false});
+ await writeFile(temporary,result.outputFiles[0].text);({PaintFlowField:Before}=await import(pathToFileURL(temporary)));
+}
+const scene=new THREE.Scene(),vortex=new VortexField({scene}),before=Before?new Before({scene,vortex}):null,after=new PaintFlowField({scene,vortex});
 const check=(name,fn)=>{const evidence=fn();report.checks.push({name,passed:true,evidence});};
 const bytes=(a,offset=0)=>Buffer.from(a.array.buffer,a.array.byteOffset+offset*a.itemSize*a.array.BYTES_PER_ELEMENT,(a.array.length-offset*a.itemSize)*a.array.BYTES_PER_ELEMENT);
 try{
- const blend=after.telemetry.blended[0],old=before.meshes.find(m=>m.name.endsWith(':1')).geometry,g=after.meshes.find(m=>m.name.endsWith(':1')).geometry;
- check('Far curl and S suffix preserve every actual geometry/animation byte; material unchanged',()=>{
+ const blend=after.telemetry.blended[0],old=before?.meshes.find(m=>m.name.endsWith(':1')).geometry,g=after.meshes.find(m=>m.name.endsWith(':1')).geometry;
+ if(before)check('Far curl and S suffix preserve every actual geometry/animation byte; material unchanged',()=>{
   const oldFar=before.meshes.find(m=>m.name.endsWith(':2')).geometry,far=after.meshes.find(m=>m.name.endsWith(':2')).geometry;
   assert.deepEqual(far.index.array,oldFar.index.array);for(const key of Object.keys(far.attributes))assert(bytes(far.attributes[key]).equals(bytes(oldFar.attributes[key])),key);
   for(const key of Object.keys(g.attributes))assert(bytes(g.attributes[key],blend.renderedVertices).equals(bytes(old.attributes[key],blend.sourceVertices)),key);
@@ -24,6 +26,7 @@ try{
   for(const key of ['roughness','metalness','envMapIntensity'])assert.equal(before.material[key],after.material[key]);assert.equal(before.material.userData.paintUniforms.oilBrushAtlas.value,after.material.userData.paintUniforms.oilBrushAtlas.value);
   return {sourceVertices:blend.sourceVertices,renderedVertices:blend.renderedVertices,sourceTriangles:blend.sourceTriangles,renderedTriangles:blend.triangles};
  });
+ else report.checks.push({name:'Historical RC65 exact isolation comparison',skipped:true,reason:'Optional private recovery checkpoint is absent in a public checkout; current topology checks still run.'});
  check('Rendered near surface is closed, consistently wound, and welded motion/colour remains continuous',()=>{
   const map=new Map(),ids=[],parent=[],edges=new Map();let duplicateVertices=0,minNormalDot=1;
   const root=x=>{while(parent[x]!==x){parent[x]=parent[parent[x]];x=parent[x];}return x;};
@@ -48,6 +51,7 @@ try{
   return report.topology;
  });
  check('Flow projection has no angular UV cut on actual triangle edges',()=>{let maxVGradient=0;for(let i=0;i<blend.triangles*3;i+=3)for(let edge=0;edge<3;edge++){const a=g.index.getX(i+edge),b=g.index.getX(i+(edge+1)%3),p=new THREE.Vector3().fromBufferAttribute(g.attributes.position,a),q=new THREE.Vector3().fromBufferAttribute(g.attributes.position,b),distance=p.distanceTo(q);maxVGradient=Math.max(maxVGradient,Math.abs(g.attributes.uv.getY(a)-g.attributes.uv.getY(b))/distance);}assert(maxVGradient<1);return {maxVGradient};});
+ if(blend.pigment?.smoothing)check('Surface pigment stays bounded and conserves vertex sum while softening edge jumps',()=>{const {before,after}=blend.pigment;assert(after.min>=0&&after.max<=1);assert(Math.abs(after.mass-before.mass)<1e-5);assert(after.edgeContrast<before.edgeContrast);return {before,after,scope:'Vertex sum, not physical surface-area mass'};});
  report.status='passed';
 }catch(error){report.status='failed';report.failure=error.stack;process.exitCode=1;}
-finally{before.dispose();after.dispose();vortex.dispose();await unlink(temporary);await writeFile('tests/v17-blend-structure.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report));}
+finally{before?.dispose();after.dispose();vortex.dispose();if(checkpoint)await unlink(temporary);await writeFile(process.env.PAINT_STRUCTURE_REPORT||'tests/paint-blend-structure.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report));}
