@@ -1,4 +1,4 @@
-// One cancellable animation owns the paper surface. Repeated input targets the
+// Panel and page animations cancel independently. Repeated input targets the
 // latest requested spread; no delayed callback can resurrect a closed book.
 export class ProjectBook {
   constructor(panel) {
@@ -8,6 +8,7 @@ export class ProjectBook {
     this.sheet = panel.querySelector('.book-turn');
     this.page = 0;
     this.revision = 0;
+    this.turnRevision = 0;
     this.animations = new Set();
     this.status = 'closed';
     this.tabs = [...panel.querySelectorAll('[data-book-page]')];
@@ -28,13 +29,22 @@ export class ProjectBook {
     },options);
   }
 
-  get duration() { return matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 460; }
+  get duration() { return matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 360; }
   dispose(){this.events.abort();this.reset();}
   cancel() {
-    this.revision++;
+    this.revision++; this.turnRevision++;
     for (const animation of this.animations) animation.cancel();
     this.animations.clear();
     this.sheet.replaceChildren(); this.sheet.hidden = true;
+  }
+  cancelTurn() {
+    this.turnRevision++;
+    for (const animation of this.animations) if (animation.effect?.target === this.sheet) animation.cancel();
+    this.sheet.replaceChildren(); this.sheet.hidden = true;
+  }
+  presentation() {
+    const style = getComputedStyle(this.panel);
+    return {opacity:style.opacity, transform:style.transform};
   }
   async animate(element, frames, duration = this.duration) {
     const animation = element.animate(frames, {duration, easing:'cubic-bezier(.22,.75,.25,1)', fill:'both'});
@@ -46,22 +56,22 @@ export class ProjectBook {
 
   async open(project) {
     const wasOpen = !this.panel.hidden;
+    const current = wasOpen ? this.presentation() : {opacity:0, transform:'perspective(1500px) translateY(20px) rotateY(-3deg) scale(.985)'};
     this.cancel(); const revision = this.revision;
     this.project = project; this.page = 0; this.status = 'opening';
     this.panel.hidden = false; this.panel.inert = false;
     this.render();
     this.panel.querySelector('#project-close').focus({preventScroll:true});
-    await this.animate(this.panel, wasOpen
-      ? [{opacity:.7, transform:'translateY(10px)'},{opacity:1, transform:'none'}]
-      : [{opacity:0, transform:'perspective(1500px) translateY(36px) rotateY(-12deg) scale(.94)'},{opacity:1, transform:'perspective(1500px) translateY(0) rotateY(0) scale(1)'}], this.duration + (wasOpen ? 0 : 140));
-    if (revision === this.revision) this.status = 'open';
+    await this.animate(this.panel, [current, {opacity:1, transform:'none'}], this.duration);
+    if (revision === this.revision && this.status === 'opening') this.status = 'open';
   }
 
   async close() {
     if (this.panel.hidden) return true;
+    const current = this.presentation();
     this.cancel(); const revision = this.revision;
     this.status = 'closing'; this.panel.inert = true;
-    await this.animate(this.panel, [{opacity:1, transform:'none'},{opacity:0, transform:'perspective(1500px) translateY(24px) rotateY(-9deg) scale(.96)'}], this.duration * .65);
+    await this.animate(this.panel, [current,{opacity:0, transform:'perspective(1500px) translateY(12px) rotateY(-2deg) scale(.985)'}], this.duration * .65);
     if (revision !== this.revision) return false;
     this.panel.hidden = true; this.panel.inert = false; this.status = 'closed';
     return true;
@@ -78,12 +88,12 @@ export class ProjectBook {
     face.removeAttribute('id');
     face.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
     face.querySelectorAll('a,button').forEach(el => el.setAttribute('tabindex', '-1'));
-    this.cancel(); const revision = this.revision;
+    this.cancelTurn(); const revision = this.turnRevision;
     this.status = 'turning'; this.page = next; this.render();
     this.sheet.dataset.direction = forward ? 'next' : 'previous';
     this.sheet.replaceChildren(face); this.sheet.hidden = false;
     await this.animate(this.sheet, [{transform:'rotateY(0deg)', opacity:1},{transform:`rotateY(${forward ? -172 : 172}deg)`, opacity:.12}]);
-    if (revision === this.revision) { this.sheet.hidden = true; this.sheet.replaceChildren(); this.status = 'open'; }
+    if (revision === this.turnRevision) { this.sheet.hidden = true; this.sheet.replaceChildren(); this.status = 'open'; }
   }
 
   render() {

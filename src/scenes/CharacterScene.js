@@ -92,7 +92,7 @@ export class CharacterScene {
   setPresence(value){
     if(!this.model)return;
     if(!this.presenceMaterials){this.presenceMaterials=new Map();for(const object of this.getSolidMeshes())for(const material of [object.material].flat()){if(this.presenceMaterials.has(material))continue;this.presenceMaterials.set(material,{opacity:material.opacity,depthWrite:material.depthWrite});material.transparent=false;material.alphaToCoverage=this.presenceCoverage;material.alphaHash=!this.presenceCoverage;material.needsUpdate=true;}}
-    const p=THREE.MathUtils.clamp(value,0,1);for(const [material,base] of this.presenceMaterials){material.opacity=base.opacity*p;material.depthWrite=base.depthWrite&&p>.001;}this.exhaust?.setPresence(p);
+    const p=THREE.MathUtils.clamp(value,0,1);for(const [material,base] of this.presenceMaterials){material.opacity=base.opacity*p;material.depthWrite=base.depthWrite&&p>.001;}this.exhaust?.setPresence(p);this.wake.setPresence(p);
   }
   getSolidMeshes(){const meshes=[];this.model?.traverse(node=>{if(node.isMesh)meshes.push(node);});return meshes.concat(this.exhaust?.solidMeshes||[]);}
   getBodyBounds(){this.group.updateWorldMatrix(true,false);this.group.updateMatrixWorld(true);const bounds=new THREE.Box3();for(const mesh of this.getSolidMeshes())bounds.expandByObject(mesh,true);return bounds;}

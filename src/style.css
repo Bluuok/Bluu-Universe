@@ -110,3 +110,33 @@ body.project-reading .brand,body.project-reading nav{opacity:.65}
   .book-page figure{margin:18px 0 14px}
 }
 @media(prefers-reduced-motion:reduce){#world,#transition{transition:none}.book-tabs button{transition:none}}
+
+/* Small, continuous feedback keeps the wooden room calm and controls tactile. */
+:root{--ui-ease:cubic-bezier(.2,.8,.2,1)}
+.hotspot{border-radius:10px;padding:9px 13px;border-color:#d6be8752;box-shadow:0 4px 16px #0003;transition:transform 220ms var(--ui-ease),background 180ms,border-color 180ms,box-shadow 220ms;transform:translate(-50%,-50%) scale(1)}
+.hotspot:hover,.hotspot.is-active,.hotspot:focus-visible{transform:translate(-50%,calc(-50% - 3px)) scale(1.035);background:#29404bed;border-color:#eed7a8b3;box-shadow:0 8px 24px #0004,0 0 0 3px #e9cc8e10}
+.hotspot:active{transform:translate(-50%,-50%) scale(.97);transition-duration:80ms}
+.hotspot:before{transition:box-shadow 200ms,background 200ms}
+.hotspot.is-active:before{background:#ffe3a9;box-shadow:0 0 12px #f3cd89aa}
+#project-close,#project-back,#book-prev,#book-next,#exit,.book-tabs button,#project-links a,.catalog-item,#catalog-close{transition:background 180ms var(--ui-ease),color 180ms,border-color 180ms,box-shadow 200ms,scale 200ms var(--ui-ease)}
+#project-close{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;margin:-6px -7px -6px 0;background:#ffffff08}
+#project-close:hover,#catalog-close:hover{background:#e6d4b21c;color:#fff0d2}
+#project-back{border-radius:8px;padding:9px 12px;margin-left:-12px}
+#project-back:hover{background:#e6d4b214;color:#fff0d2}
+#book-prev,#book-next{width:34px;height:34px}
+#book-prev:not(:disabled):hover,#book-next:not(:disabled):hover{background:#c1a97740;border-color:#ebd8ac99}
+#project-close:active,#project-back:active,#book-prev:not(:disabled):active,#book-next:not(:disabled):active,#exit:active,.book-tabs button:active,#project-links a:active,.catalog-item:active{scale:.96;transition-duration:80ms}
+#project-links a{border-radius:9px}
+#project-links a:hover{background:#dde4d2;border-color:#6e90897d;box-shadow:0 3px 10px #4255480c}
+#project-panel{transform-origin:center center}
+.book-navigation{min-height:69px}
+#exit{border-radius:11px;padding:13px 20px}
+#exit:hover{background:#29414fef;border-color:#e1c38d77;box-shadow:0 5px 20px #0002}
+#catalog{border-radius:16px;animation:catalog-arrive 200ms var(--ui-ease)}
+.catalog-item{border-radius:9px;padding:14px 10px;margin:2px -10px;width:calc(100% + 20px);border-bottom-color:#cbe4f214}
+.catalog-item:hover,.catalog-item:focus-visible{background:#a5bec514}
+@keyframes catalog-arrive{from{opacity:0;transform:translateY(-7px) scale(.985)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.hotspot,.hotspot:before,#project-close,#project-back,#book-prev,#book-next,#exit,.book-tabs button,#project-links a,.catalog-item,#catalog-close{transition:none}#catalog{animation:none}.hotspot:hover,.hotspot.is-active,.hotspot:focus-visible,.hotspot:active{transform:translate(-50%,-50%)}button:active,a:active{scale:1!important}}
+
+@media(max-width:700px){.hotspot{padding:8px 9px}.book-navigation{min-height:60px}}
+@media(min-width:701px) and (max-height:820px){.book-navigation{min-height:54px}}

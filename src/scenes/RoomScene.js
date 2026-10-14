@@ -79,6 +79,8 @@ export class RoomScene {
     this.group.visible = true;
     this.scene.add(this.group);
     this.hotspots = [];
+    this.hoveredExhibit = null;
+    this.feedbackTint = new Color('#fff2d5').multiplyScalar(1.12);
     this.objects = new Map();
     this.resources = new Set();
     this.status = 'idle';
@@ -252,12 +254,16 @@ export class RoomScene {
       }
       this.hotspots.push({
         id, object, anchor: this.group.localToWorld(anchor.clone()),
+        feedback: [], amount: 0,
         camera: {
           position: this.group.localToWorld(vector(configuration.camera.position)),
           target: this.group.localToWorld(vector(configuration.camera.target || configuration.anchor)),
         },
       });
     }
+    for (const hotspot of this.hotspots) hotspot.object.traverse(child => {
+      if (child.userData.exhibitFeedback) hotspot.feedback.push(child.material);
+    });
     // Reuse the arcade prop as a quiet star chart, with no embedded games or iframes.
     const chart = this.objects.get('arcadeMachine');
     if (chart) {
@@ -345,7 +351,9 @@ export class RoomScene {
     const material = new MeshBasicMaterial({ map: this.canvasTexture(canvas), toneMapped: true });
     const geometry = new PlaneGeometry(width, height);
     this.resources.add(material); this.resources.add(geometry);
-    return new Mesh(geometry, material);
+    const screen = new Mesh(geometry, material);
+    screen.userData.exhibitFeedback = true;
+    return screen;
   }
 
   makeContactCard(configuration) {
@@ -429,8 +437,17 @@ export class RoomScene {
     this.group.add(rug); this.resources.add(geometry); this.resources.add(material);
   }
 
+  setExhibitFocus(id, immediate = false) {
+    this.hoveredExhibit = id;
+    if (immediate) for (const hotspot of this.hotspots) hotspot.amount = hotspot.id === id ? 1 : 0;
+  }
+
   update(dt, time) {
     if (!this.group.visible || this.status !== 'ready') return;
+    for (const hotspot of this.hotspots) {
+      hotspot.amount += ((hotspot.id === this.hoveredExhibit ? 1 : 0) - hotspot.amount) * (1 - Math.exp(-18 * dt));
+      for (const material of hotspot.feedback) material.color.setRGB(1,1,1).lerp(this.feedbackTint,hotspot.amount);
+    }
     if (this.chair) this.chair.rotation.y = Math.sin(time * 0.3) * 0.08;
   }
 

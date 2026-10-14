@@ -40,4 +40,4 @@ try{
  check('All opaque fittings and flame fade with the character',()=>{current.setPresence(0);for(const m of current.getSolidMeshes())for(const mat of [m.material].flat()){assert.equal(mat.opacity,0);assert.equal(mat.depthWrite,false);}for(const jet of current.exhaust.jets)assert.equal(jet.flame.material.uniforms.presence.value,0);current.setPresence(1);return {opaqueMeshes:current.getSolidMeshes().length};});
  report.status='passed';
 }catch(e){report.status='failed';report.failure=e.stack;process.exitCode=1;}
-finally{current.dispose();prior.dispose();await writeFile('tests/v19-character-cpu.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report));}
+finally{current.dispose();prior.dispose();await writeFile(process.env.CHARACTER_CPU_REPORT||'tests/v19-character-cpu.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report));}

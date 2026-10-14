@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {FlightEffects} from '../config/FlightEffects.js';
 // Continuous bright nozzles/short flames; free particles supply only the wake.
 export class FlightExhaust{
   constructor(parent,config={}){
@@ -13,7 +14,7 @@ export class FlightExhaust{
       const geometry=new THREE.CylinderGeometry(.087,.003,1,20,8,true);geometry.translate(0,-.5,0);geometry.rotateX(Math.PI/2);
       const flame=new THREE.Mesh(geometry,new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,toneMapped:false,
         uniforms:{power:{value:0},time:{value:0},presence:{value:1}},vertexShader:'varying vec2 uvFlame;varying vec3 flameWorld;varying vec3 flameNormal;void main(){uvFlame=uv;flameWorld=(modelMatrix*vec4(position,1.)).xyz;flameNormal=normalize(mat3(modelMatrix)*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-        fragmentShader:'uniform float power;uniform float time;uniform float presence;varying vec2 uvFlame;varying vec3 flameWorld;varying vec3 flameNormal;void main(){float tail=1.-uvFlame.y;float ripple=.88+.12*sin(tail*28.-time*23.);vec3 c=mix(vec3(.04,.33,.92),vec3(1.,.58,.13),pow(uvFlame.y,6.));float edge=smoothstep(.015,.65,abs(dot(normalize(flameNormal),normalize(cameraPosition-flameWorld))));float a=pow(uvFlame.y,.65)*(.12+.48*power)*ripple*edge*presence;gl_FragColor=vec4(c*(.72+power*.35),a);}' }));
+        fragmentShader:'uniform float power;uniform float time;uniform float presence;varying vec2 uvFlame;varying vec3 flameWorld;varying vec3 flameNormal;void main(){float tail=1.-uvFlame.y;float ripple=.88+.12*sin(tail*8.-time*16.);vec3 c=mix(vec3(.04,.33,.92),vec3(1.,.58,.13),pow(uvFlame.y,6.));float edge=smoothstep(.015,.65,abs(dot(normalize(flameNormal),normalize(cameraPosition-flameWorld))));float a=pow(uvFlame.y,1.6)*(.08+.36*power)*ripple*edge*presence;gl_FragColor=vec4(c*(.72+power*.35),a);}' }));
       flame.position.z=-.075;nozzle.add(flame);this.jets.push({nozzle,core,flame});
     }
   }
@@ -24,9 +25,9 @@ export class FlightExhaust{
       // Keep the mount on the backpack while the outlet aims aft. The body's
       // Small body lean must not turn the exhaust into an upward plume.
       nozzle.rotation.x=-bodyLean-THREE.MathUtils.clamp(pitch,-.7,.7);
-      core.scale.setScalar(.65+this.power*.5);core.scale.z*=.5;flame.scale.set(.7+this.power*.47,.7+this.power*.47,.08+this.power*.78);flame.material.uniforms.power.value=this.power;flame.material.uniforms.time.value=time;
+      core.scale.setScalar(.65+this.power*.5);core.scale.z*=.5;flame.scale.set(.7+this.power*.47,.7+this.power*.47,FlightEffects.plume.idleLength+this.power*FlightEffects.plume.thrustLength);flame.material.uniforms.power.value=this.power;flame.material.uniforms.time.value=time;
     }
-    this.telemetry={power:this.power,length:.08+this.power*.78,continuousNozzles:2,drivenBy:'thrust',bodyLean,nozzlePitch:this.jets[0].nozzle.rotation.x};
+    this.telemetry={power:this.power,length:FlightEffects.plume.idleLength+this.power*FlightEffects.plume.thrustLength,continuousNozzles:2,drivenBy:'thrust',bodyLean,nozzlePitch:this.jets[0].nozzle.rotation.x};
   }
   dispose(){
     if(this.disposed)return;this.disposed=true;this.group.removeFromParent();
