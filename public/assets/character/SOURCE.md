@@ -1,5 +1,7 @@
 # Cute Astronaut — haefu
 
+2026-10-14 runtime adaptation: the original GLB bytes and attribution remain unchanged. The adapter contracts 11 rear-outline vertices by at most 0.02367 world units, preserves topology/UV/skin bindings, and smooths 256 matching-skin seam normals with a 60-degree crease limit. No subdivision or new source model is claimed. Separate opaque nozzle barrels/lips follow the character fade and fit the retained collision envelopes.
+
 - Original creator: [haefu](https://sketchfab.com/haefu)
 - Original model: [Cute Astronaut](https://sketchfab.com/3d-models/cute-astronaut-816bd786fe8b4559a009de6a95582003)
 - Original license: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/), also embedded in `asset.extras` in the GLB.

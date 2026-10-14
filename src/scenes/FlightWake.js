@@ -46,12 +46,12 @@ export class FlightWake {
     }
     const step=Math.min(Math.max(dt,0),.06);
     this.power=THREE.MathUtils.lerp(this.power,braking?0:thrust,1-Math.exp(-(braking?24:thrust>0?11:16)*step));
-    const rate=this.power>.015 ? 138*this.power*(1+Math.min(1,Math.abs(turn))*.13) : 0;
+    const rate=this.power>.015 ? 48*this.power*(1+Math.min(1,Math.abs(turn))*.13) : 0;
     this.emit=Math.min(this.emit+step*rate,this.capacity);
     while(this.emit>=1&&nozzles.length){
       this.emit--;
       const i=this.cursor++%this.capacity,p=this.particles[i],nozzle=nozzles[i%nozzles.length];
-      p.age=0;p.life=.40+Math.random()*.25;p.size=(i%3===2?.105:.13)+Math.random()*.06;
+      p.age=0;p.life=.30+Math.random()*.18;p.size=(i%3===2?.055:.065)+Math.random()*.025;
       p.position.set((Math.random()-.5)*.065,(Math.random()-.5)*.06,-.18).applyMatrix4(nozzle.matrixWorld);
       this.direction.set((Math.random()-.5)*.26,(Math.random()-.5)*.20,-1).transformDirection(nozzle.matrixWorld);
       p.velocity.copy(this.direction).multiplyScalar(2.4+this.power*1.0);

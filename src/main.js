@@ -201,14 +201,15 @@ window.starhaven.inspect={
   collision:()=>collision?{...collision.telemetry(character.group.position),bounds:AssetManifest.space.bounds,state:state.value,skippedReason:state.moving?null:state.value}:null,
   runCollisionFixture:payload=>collision?.runFixture(payload),
   placeFlightFixture:({position,velocity=[0,0,0],yaw=0})=>{if(!ready||state.value!==STATES.SPACE||!Array.isArray(position)||position.length!==3||position.some((v,i)=>!Number.isFinite(v)||v<AssetManifest.space.bounds.min[i]||v>AssetManifest.space.bounds.max[i]))return false;controller.clear();character.group.position.fromArray(position);controller.velocity.fromArray(velocity);controller.resetHeading(yaw,0);return true;},
-  characterBounds:()=>{character.model?.updateWorldMatrix(true,true);const b=new THREE.Box3().setFromObject(character.model,true);return {min:b.min.toArray(),max:b.max.toArray(),height:character.manifest.height};},
+  characterBounds:()=>{const b=character.getBodyBounds();return {min:b.min.toArray(),max:b.max.toArray(),height:character.manifest.height,scope:'skinned source plus opaque backpack fittings; flame and wake excluded'};},
+  characterSurface:()=>character.surfaceTelemetry||[],
   characterEnvelope:()=>{
     if(!character.model||!collision)return null;
     scene.updateMatrixWorld(true);
     const c=CollisionManifest.capsule,origin=character.group.position,startY=origin.y+c.footOffsetY+c.radius;
     const point=new THREE.Vector3();let maximum=0,vertices=0;
-    character.model.traverse(mesh=>{if(!mesh.isMesh)return;mesh.skeleton?.update();const count=mesh.geometry.attributes.position.count;for(let i=0;i<count;i++){mesh.getVertexPosition(i,point).applyMatrix4(mesh.matrixWorld);const closestY=THREE.MathUtils.clamp(point.y,startY,startY+c.segmentLength);maximum=Math.max(maximum,Math.hypot(point.x-origin.x,point.y-closestY,point.z-origin.z));vertices++;}});
-    return {vertices,maximumDistanceToSegment:maximum,radius:c.radius,skin:c.skin,enclosed:maximum<=c.radius+c.skin,lean:character.modelRoot.rotation.x,forward:'+Z'};
+    for(const mesh of character.getSolidMeshes()){mesh.skeleton?.update();const count=mesh.geometry.attributes.position.count;for(let i=0;i<count;i++){mesh.getVertexPosition(i,point).applyMatrix4(mesh.matrixWorld);const closestY=THREE.MathUtils.clamp(point.y,startY,startY+c.segmentLength);maximum=Math.max(maximum,Math.hypot(point.x-origin.x,point.y-closestY,point.z-origin.z));vertices++;}}
+    return {vertices,maximumDistanceToSegment:maximum,radius:c.radius,skin:c.skin,enclosed:maximum<=c.radius+c.skin,lean:character.modelRoot.rotation.x,forward:'+Z',scope:'skinned source and opaque fittings; flame/wake are not body collision geometry'};
   },
   roomEntities:()=>room.getTelemetry?.(),
   framePosition:({position,target,duration=.45})=>{if(!ready||state.locked)return false;controller.clear();director.setMode('INSPECT');director.moveTo(new THREE.Vector3(...position),new THREE.Vector3(...target),duration);return true;},

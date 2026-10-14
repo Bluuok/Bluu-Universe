@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {FlightTuning} from '../config/FlightTuning.js';
 import {FlightExhaust} from './FlightExhaust.js';
 import {FlightWake} from './FlightWake.js';
+import {smoothCharacterSeams,bevelCharacterBackpack} from './CharacterSurface.js';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {mergeVertices} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {RoundedBoxGeometry} from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
@@ -47,7 +48,10 @@ export class CharacterScene {
             mat.customProgramCacheKey=()=>`starhaven-suit-lift:${original.name}`;
           }
           }else if(mat.color){const light=mat.color.r*.2126+mat.color.g*.7152+mat.color.b*.0722;if(light<.14){mat.color.set('#072d4d');mat.metalness=.72;mat.roughness=.14;}else if(light>.66&&!mat.map){mat.color.set('#f7eddb');}}}return mat;});if(node.material.length===1)node.material=node.material[0];});
-    this.provisional=Boolean(this.manifest.provisional);this.model=model;this.pivotHeight=.86;model.position.y-=this.pivotHeight;this.poseOffsets=[];this.exhaust=new FlightExhaust(this.modelRoot);
+    this.provisional=Boolean(this.manifest.provisional);this.model=model;this.pivotHeight=.86;model.position.y-=this.pivotHeight;this.poseOffsets=[];
+    this.surfaceTelemetry={bevel:bevelCharacterBackpack(model,this.modelRoot,this.manifest.surface?.backpackBevel),normals:[]};
+    if(this.manifest.surface?.normalSeams)model.traverse(node=>{if(node.isMesh)this.surfaceTelemetry.normals.push({mesh:node.name,...smoothCharacterSeams(node.geometry,this.manifest.surface.normalSeams)});});
+    this.exhaust=new FlightExhaust(this.modelRoot,this.manifest.backpack);
   }
   applyLegPose(){
     const adaptation=this.manifest.adaptation?.legShortening;if(!adaptation||!this.model)return;
@@ -87,9 +91,11 @@ export class CharacterScene {
   // every overlapping suit triangle exposed its internal faces at half alpha.
   setPresence(value){
     if(!this.model)return;
-    if(!this.presenceMaterials){this.presenceMaterials=new Map();this.model.traverse(object=>{if(object.isMesh)for(const material of [object.material].flat()){this.presenceMaterials.set(material,{opacity:material.opacity,depthWrite:material.depthWrite});material.transparent=false;material.alphaToCoverage=this.presenceCoverage;material.alphaHash=!this.presenceCoverage;material.needsUpdate=true;}});}
-    const p=THREE.MathUtils.clamp(value,0,1);for(const [material,base] of this.presenceMaterials){material.opacity=base.opacity*p;material.depthWrite=base.depthWrite&&p>.001;}
+    if(!this.presenceMaterials){this.presenceMaterials=new Map();for(const object of this.getSolidMeshes())for(const material of [object.material].flat()){if(this.presenceMaterials.has(material))continue;this.presenceMaterials.set(material,{opacity:material.opacity,depthWrite:material.depthWrite});material.transparent=false;material.alphaToCoverage=this.presenceCoverage;material.alphaHash=!this.presenceCoverage;material.needsUpdate=true;}}
+    const p=THREE.MathUtils.clamp(value,0,1);for(const [material,base] of this.presenceMaterials){material.opacity=base.opacity*p;material.depthWrite=base.depthWrite&&p>.001;}this.exhaust?.setPresence(p);
   }
+  getSolidMeshes(){const meshes=[];this.model?.traverse(node=>{if(node.isMesh)meshes.push(node);});return meshes.concat(this.exhaust?.solidMeshes||[]);}
+  getBodyBounds(){this.group.updateWorldMatrix(true,false);this.group.updateMatrixWorld(true);const bounds=new THREE.Box3();for(const mesh of this.getSolidMeshes())bounds.expandByObject(mesh,true);return bounds;}
   dispose(){
     if(this.disposed)return;this.disposed=true;
     this.wake.dispose();this.exhaust?.dispose();this.mixer?.stopAllAction();if(this.model)this.mixer?.uncacheRoot(this.model);
