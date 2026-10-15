@@ -121,7 +121,7 @@ export function makeVortexPaintMaterial(profile,{cloud=false,brushAtlas}={}) {
       // The same fixed 3D pigment masses read from the side and back, unlike
       // a facing sprite or a chart repeated around a latitude. The coarse
       // wash, broken mid-scale paint and real bristles have distinct sizes.
-      vec3 washPosition=${profile.flowStroke?'vec3(vOilUV.x*.11,vOilUV.y*1.5,0.)':'vOilLocal*.27'};
+      vec3 washPosition=vOilLocal*.27;
       float warp=oilCloud(washPosition*.63+4.7);
       float cloudMass=.58*oilCloud(washPosition+vec3(warp*1.8))+.42*oilCloud(washPosition*2.7+7.3);
       float brokenPaint=oilCloud(vOilLocal*vec3(1.3,2.8,1.9)+warp*2.);
@@ -131,7 +131,7 @@ export function makeVortexPaintMaterial(profile,{cloud=false,brushAtlas}={}) {
         // Borrow the already loaded, licensed sky-only pigment. Stochastic
         // affine patches blend continuously across all three projections.
         vec3 paintPosition=vOilLocal*${cloud?'1.1':'1.4'};
-        sourceGrain=${profile.flowStroke?'sourcePaint(vec2(vOilUV.x*.7,vOilUV.y*1.8))':'sourcePaint(paintPosition.yz)*paintWeights.x+sourcePaint(paintPosition.zx+7.3)*paintWeights.y+sourcePaint(paintPosition.xy+3.1)*paintWeights.z'};
+        sourceGrain=sourcePaint(paintPosition.yz)*paintWeights.x+sourcePaint(paintPosition.zx+7.3)*paintWeights.y+sourcePaint(paintPosition.xy+3.1)*paintWeights.z;
         pigment*=${profile.flowStroke?'.90+sourceGrain*.22':'.72+sourceGrain*.95'};
       }
       diffuseColor.rgb*=pigment;
@@ -159,17 +159,20 @@ export function makeVortexPaintMaterial(profile,{cloud=false,brushAtlas}={}) {
       float edgePaint=smoothstep(.17,.54,cloudMass+.21*(brokenPaint-.5));
       diffuseColor.a*=nearEye*softEdge*sightFade*mix(.30,1.,edgePaint)*(.88+.12*max(dab.g,under.g));`:''}`);
     shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
-      float relief=(dab.r*dab.g+under.r*under.g*.45)*oilRelief+sourceGrain*.005;
+      float relief=(dab.r*dab.g+under.r*under.g*.45)*oilRelief+sourceGrain*${profile.flowStroke?'.001':'.005'};
       vec3 sx=dFdx(-vViewPosition),sy=dFdy(-vViewPosition),rx=cross(sy,normal),ry=cross(normal,sx);
       float determinant=dot(sx,rx);
-      normal=normalize(abs(determinant)*normal-sign(determinant)*(dFdx(relief)*rx+dFdy(relief)*ry));`);
+      ${profile.flowStroke?`// Keep real bristle relief without grazing-angle normal spikes.
+      vec3 paintSlope=sign(determinant)*(dFdx(relief)*rx+dFdy(relief)*ry)/max(abs(determinant),1e-9);
+      paintSlope*=.22/sqrt(.22*.22+dot(paintSlope,paintSlope));
+      normal=normalize(normal-paintSlope);`:`normal=normalize(abs(determinant)*normal-sign(determinant)*(dFdx(relief)*rx+dFdy(relief)*ry));`}`);
     // Emission follows the painted pigment instead of filling every shadow
     // with one uniform blue/yellow. Lighting still describes the real volume.
     shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance=diffuseColor.rgb*oilEmission;');
   };
   material.userData.paintUniforms=paintUniforms;
   material.userData.permeable=cloud;
-  material.customProgramCacheKey=()=>profile.flowStroke?'vortex-bristle-flow-v1':cloud?'vortex-bristle-cloud-v10':'vortex-bristle-solid-v10';
+  material.customProgramCacheKey=()=>profile.flowStroke?'vortex-bristle-flow-v2':cloud?'vortex-bristle-cloud-v10':'vortex-bristle-solid-v10';
   return material;
 }
 

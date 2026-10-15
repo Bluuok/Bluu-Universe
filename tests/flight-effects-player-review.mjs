@@ -13,9 +13,11 @@ try{
  await page.goto('http://127.0.0.1:4259/');await page.waitForFunction(()=>window.starhaven?.ready);await page.locator('#loading').waitFor({state:'hidden'});
  const bundle=await page.locator('script[src*="/assets/index-"]').getAttribute('src'),hash=b=>createHash('sha256').update(b).digest('hex');report.build={bundle,sha256:hash(Buffer.from(await(await fetch(new URL(bundle,page.url()))).arrayBuffer())),manifestSHA256:hash(Buffer.from(await(await fetch(new URL('/assets/character/manifest.json',page.url()))).arrayBuffer()))};
  await flyTo(page,[-15,12,-20],{radius:.7});await faceHeading(page,0,0);await shot('00-idle');
- await page.locator('#look-mode').click();await page.waitForFunction(()=>document.pointerLockElement?.id==='world');await page.mouse.move(720,480);
+ // Tail art does not require OS pointer capture; the separate controls suite
+ // verifies capture. Use the supported real RMB drag here for reproducibility.
+ await page.mouse.move(720,480);
  await page.keyboard.down('w');await page.waitForTimeout(850);await shot('01-thrust');
- await page.mouse.move(1050,420,{steps:12});await page.waitForTimeout(220);await shot('02-turn');
+ await page.mouse.down({button:'right'});await page.mouse.move(1050,420,{steps:12});await page.mouse.up({button:'right'});await page.waitForTimeout(220);await shot('02-turn');
  await page.keyboard.up('w');await page.waitForTimeout(100);await shot('03-release');await page.keyboard.down('x');await page.waitForTimeout(350);await shot('04-brake');await page.keyboard.up('x');
  await page.keyboard.press('Escape');await faceHeading(page,1.3,.8);await page.keyboard.down('w');await page.waitForTimeout(600);await shot('05-upward-flight');await page.keyboard.up('w');await page.keyboard.down('x');await page.waitForTimeout(400);await page.keyboard.up('x');
  await faceHeading(page,1.3,0);await page.keyboard.down('Space');await page.waitForTimeout(600);await shot('06-rise');await page.keyboard.up('Space');await page.keyboard.down('Shift');await page.waitForTimeout(600);await shot('07-descend');await page.keyboard.up('Shift');await page.keyboard.down('x');await page.waitForTimeout(700);await page.keyboard.up('x');await shot('08-rest');

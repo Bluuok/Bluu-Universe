@@ -9,8 +9,8 @@ function run(hz){
  function step(time,options={}){position.set(0,0,-12*time);nozzles.forEach((n,i)=>{n.position.copy(position);n.position.x=i*.36-.18;n.updateMatrixWorld(true);});wake.update(1/hz,{position,velocity,speed:12,thrust:1,nozzles,...options});}
  try{
   for(let i=1;i<=2*hz;i++)step(i/hz);
-  assert.ok(wake.telemetry.alive>=20&&wake.telemetry.alive<=40);assert.ok(wake.telemetry.maxSize<.035);assert.equal(scene.children.filter(o=>o.isPoints).length,1);
-  assert.ok([...wake.alphas].every(a=>Number.isFinite(a)&&a>=0&&a<=.72));
+  assert.ok(wake.telemetry.alive>=130&&wake.telemetry.alive<=235,'Full thrust must produce a clearly populated, bounded wake');assert.ok(wake.telemetry.maxSize>=.05&&wake.telemetry.maxSize<=.081);assert.equal(scene.children.filter(o=>o.isPoints).length,1);
+  assert.ok([...wake.alphas].every(a=>Number.isFinite(a)&&a>=0&&a<=.95));
   const particles=wake.particles.filter(p=>p.age<p.life),distances=particles.map(p=>p.position.distanceTo(position));assert.ok(Math.max(...distances)<8);
   const active=particles.length;
   for(let i=1;i<=hz;i++)step(2+i/hz,{thrust:0,braking:true});assert.equal(wake.telemetry.alive,0);
@@ -24,6 +24,6 @@ function run(hz){
  }finally{Math.random=originalRandom;wake.dispose();}
 }
 for(const hz of [30,60,120])results.push(run(hz));
-assert.ok(Math.max(...results.map(r=>r.active))-Math.min(...results.map(r=>r.active))<=3);
+assert.ok(Math.max(...results.map(r=>r.active))-Math.min(...results.map(r=>r.active))<=7,'Frame-rate birth quantization stays within one 30Hz emission interval');
 const report={method:'Detached Three CPU simulation, deterministic randomness; checks bounded world trail, 30/60/120Hz behavior, brake, presence, reset and disposal. Not GPU visual evidence.',status:'passed',results};
 await writeFile(process.env.WAKE_CPU_REPORT||'tests/v20-wake-cpu.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report));

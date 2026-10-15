@@ -26,7 +26,7 @@ function sampleWords(config){
 
 export class ParticleWords{
   constructor({scene,config=WordFieldManifest}){
-    this.config=config;this.time=0;this.disposed=false;this.affected=0;this.maximum=0;this.interactionHold=0;
+    this.config=config;this.time=0;this.disposed=false;this.affected=0;this.maximum=0;this.interactionHold=0;this.presentationLift=0;
     this.targets=sampleWords(config);this.offsets=new Float32Array(config.count*3);this.velocities=new Float32Array(config.count*3);
     this.positions=new Float32Array(this.targets[0]);this.phase=0;this.wordIndex=0;
     this.preference=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
@@ -51,6 +51,7 @@ export class ParticleWords{
     this.object.position.fromArray(config.position);this.object.rotation.set(...config.rotation);scene.add(this.object);this.object.updateMatrixWorld(true);
     this.inverse=this.object.matrixWorld.clone().invert();this.inverseRotation=this.object.quaternion.clone().invert();
     this.localPlayer=new THREE.Vector3();this.localVelocity=new THREE.Vector3();this.normal=new THREE.Vector3(0,0,1).applyQuaternion(this.object.quaternion);this.view=new THREE.Vector3();
+    this.cameraPosition=new THREE.Vector3();this.worldPosition=new THREE.Vector3();this.cameraRotation=new THREE.Quaternion();this.parentRotation=new THREE.Quaternion();
   }
 
   update(dt,camera,{enabled=true,paused=false,player,velocity,viewportHeight=960,pixelRatio=1}={}){
@@ -59,15 +60,30 @@ export class ParticleWords{
     this.object.visible=Boolean(c.enabled&&enabled);
     if(!this.object.visible)return;
     dt=Math.max(0,Math.min(Number.isFinite(dt)?dt:0,.1));
-    this.view.subVectors(camera.position,this.object.position);const distance=this.view.length();
-    const facing=this.normal.dot(this.view.normalize());
-    this.material.uniforms.opacity.value=(1-THREE.MathUtils.smoothstep(distance,c.fadeDistance,c.visibleDistance))*THREE.MathUtils.smoothstep(facing,-.02,.3);
+    // Keep the cloud's world anchor and actual particle depth, but present its
+    // glyphs upright to every orbit angle, including above and below. Refresh
+    // the interaction transform as well so contact follows the visible cloud.
+    camera.getWorldPosition(this.cameraPosition);camera.getWorldQuaternion(this.cameraRotation);
+    if(this.object.parent){this.object.parent.getWorldQuaternion(this.parentRotation).invert();this.object.quaternion.multiplyQuaternions(this.parentRotation,this.cameraRotation);}
+    else this.object.quaternion.copy(this.cameraRotation);
+    this.object.updateWorldMatrix(true,false);this.object.getWorldPosition(this.worldPosition);
+    this.inverse.copy(this.object.matrixWorld).invert();this.object.getWorldQuaternion(this.inverseRotation).invert();
+    this.normal.set(0,0,1).applyQuaternion(this.cameraRotation);
+    this.view.subVectors(this.cameraPosition,this.worldPosition);const distance=this.view.length();
+    // Leave headroom above the pilot when aiming at the world anchor. Bound
+    // the angular shift on approach rather than pushing nearby glyphs offscreen.
+    const lift=Math.min(c.presentationLift??0,distance*(c.presentationLiftRatio??.18)),liftDelta=lift-this.presentationLift;
+    this.presentationLift=lift;
+    this.material.uniforms.opacity.value=1-THREE.MathUtils.smoothstep(distance,c.fadeDistance,c.visibleDistance);
     this.material.uniforms.pixelRatio.value=pixelRatio;this.material.uniforms.pixelScale.value=viewportHeight*pixelRatio*.5*camera.projectionMatrix.elements[5];
     if(player){this.localPlayer.copy(player);this.localPlayer.y+=1;this.localPlayer.applyMatrix4(this.inverse);}else this.localPlayer.set(9999,9999,9999);
     this.material.uniforms.player.value.copy(this.localPlayer);
-    if(paused)return;
+    if(paused){
+      if(liftDelta!==0){for(let k=1;k<this.positions.length;k+=3)this.positions[k]+=liftDelta;this.geometry.attributes.position.needsUpdate=true;}
+      return;
+    }
     const physics=c.interaction,duration=c.holdSeconds+c.morphSeconds;
-    const approaching=Boolean(player)&&Math.abs(this.localPlayer.x)<c.width*.5+physics.radius&&Math.abs(this.localPlayer.y)<8+physics.radius&&Math.abs(this.localPlayer.z)<physics.radius+physics.approachBuffer;
+    const approaching=Boolean(player)&&Math.abs(this.localPlayer.x)<c.width*.5+physics.radius&&Math.abs(this.localPlayer.y-lift)<8+physics.radius&&Math.abs(this.localPlayer.z)<physics.radius+physics.approachBuffer;
     this.interactionHold=approaching?physics.releaseDelay:Math.max(0,this.interactionHold-dt);
     if(!reduced){
       const elapsed=this.time%duration;
@@ -83,13 +99,13 @@ export class ParticleWords{
     const from=this.targets[this.wordIndex],to=this.targets[(this.wordIndex+1)%this.targets.length],arc=Math.sin(Math.PI*this.phase);
     if(velocity)this.localVelocity.copy(velocity).applyQuaternion(this.inverseRotation);else this.localVelocity.set(0,0,0);
     const steps=Math.max(1,Math.ceil(dt/(1/90))),h=dt/steps;
-    const nearField=Math.abs(this.localPlayer.x)<c.width*.5+physics.radius+physics.maxOffset&&Math.abs(this.localPlayer.y)<8+physics.radius&&Math.abs(this.localPlayer.z)<physics.radius+physics.maxOffset+1;
+    const nearField=Math.abs(this.localPlayer.x)<c.width*.5+physics.radius+physics.maxOffset&&Math.abs(this.localPlayer.y-lift)<8+physics.radius&&Math.abs(this.localPlayer.z)<physics.radius+physics.maxOffset+1;
     const integrate=!reduced&&(nearField||this.maximum>.00001);
     let affected=0,maximum=0;
     for(let i=0;i<c.count;i++){
       const k=i*3,seed=i*2.39996;
       const tx=THREE.MathUtils.lerp(from[k],to[k],this.phase)+(arc?arc*.45*Math.sin(seed):0);
-      const ty=THREE.MathUtils.lerp(from[k+1],to[k+1],this.phase)+(arc?arc*c.arcHeight*Math.sin(seed*.41):0);
+      const ty=THREE.MathUtils.lerp(from[k+1],to[k+1],this.phase)+lift+(arc?arc*c.arcHeight*Math.sin(seed*.41):0);
       const tz=THREE.MathUtils.lerp(from[k+2],to[k+2],this.phase)+(arc?arc*.75*Math.cos(seed):0);
       if(reduced){this.offsets[k]=this.offsets[k+1]=this.offsets[k+2]=this.velocities[k]=this.velocities[k+1]=this.velocities[k+2]=0;}
       let touched=false;
@@ -113,6 +129,6 @@ export class ParticleWords{
     }
     this.affected=affected;this.maximum=maximum;this.geometry.attributes.position.needsUpdate=true;
   }
-  get telemetry(){return {enabled:this.config.enabled,visible:this.object.visible,word:this.config.words[this.wordIndex],nextWord:this.config.words[(this.wordIndex+1)%this.config.words.length],morph:this.phase,time:this.time,count:this.config.count,affected:this.affected,holdingForInteraction:this.interactionHold>0,interactionRadius:this.config.interaction.radius,maxDisplacement:this.maximum,reducedMotion:Boolean(this.preference?.matches),position:[...this.config.position],rotation:[...this.config.rotation],disposed:this.disposed};}
+  get telemetry(){return {enabled:this.config.enabled,visible:this.object.visible,word:this.config.words[this.wordIndex],nextWord:this.config.words[(this.wordIndex+1)%this.config.words.length],morph:this.phase,time:this.time,count:this.config.count,affected:this.affected,holdingForInteraction:this.interactionHold>0,interactionRadius:this.config.interaction.radius,maxDisplacement:this.maximum,reducedMotion:Boolean(this.preference?.matches),position:[...this.config.position],rotation:this.object.rotation.toArray().slice(0,3),authoredRotation:[...this.config.rotation],presentation:'camera-facing-volume',presentationLift:this.presentationLift,opacity:this.material.uniforms.opacity.value,disposed:this.disposed};}
   dispose(){if(this.disposed)return;this.disposed=true;this.object.removeFromParent();this.geometry.dispose();this.material.dispose();}
 }

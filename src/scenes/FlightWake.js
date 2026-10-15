@@ -16,13 +16,13 @@ export class FlightWake {
     const palette=['#32aeff','#62cdef','#62cdef','#ffcb53'];
     for(let i=0;i<capacity;i++)new THREE.Color(palette[i%4]).toArray(this.colors,i*3);
     this.material=new THREE.ShaderMaterial({transparent:true,depthTest:true,depthWrite:false,blending:THREE.NormalBlending,toneMapped:false,
-      uniforms:{viewportHeight:{value:960},presence:{value:1}},
+      uniforms:{viewportHeight:{value:960},presence:{value:1},brightness:{value:this.config.brightness??1}},
       vertexShader:`attribute vec3 color;attribute vec3 wakeAxis;attribute float wakeSize;attribute float wakeLength;attribute float wakeAlpha;
-        uniform float viewportHeight;varying vec3 vColor;varying float vAlpha;varying vec2 vAxis;varying float vAspect;
+        uniform float viewportHeight;uniform float brightness;varying vec3 vColor;varying float vAlpha;varying vec2 vAxis;varying float vAspect;
         void main(){vec4 view=modelViewMatrix*vec4(position,1.);vec3 axis=mat3(modelViewMatrix)*wakeAxis;
           float projected=length(axis.xy);vAxis=projected>.001?vec2(axis.x,-axis.y)/projected:vec2(1.,0.);
           float extent=mix(wakeSize,wakeLength,clamp(projected,0.,1.));vAspect=max(1.,extent/max(.001,wakeSize));
-          vColor=color;vAlpha=wakeAlpha;gl_Position=projectionMatrix*view;
+          vColor=color*brightness;vAlpha=wakeAlpha;gl_Position=projectionMatrix*view;
           gl_PointSize=clamp(extent*viewportHeight*projectionMatrix[1][1]/max(1.,-2.*view.z),1.,24.);}`,
       fragmentShader:`uniform float presence;varying vec3 vColor;varying float vAlpha;varying vec2 vAxis;varying float vAspect;
         void main(){vec2 p=gl_PointCoord*2.-1.;float along=dot(p,vAxis);float across=dot(p,vec2(-vAxis.y,vAxis.x))*vAspect;
@@ -78,7 +78,7 @@ export class FlightWake {
     }
     for(const name of ['position','wakeAxis','wakeSize','wakeLength','wakeAlpha'])this.geometry.attributes[name].needsUpdate=true;
     this.material.uniforms.viewportHeight.value=(globalThis.innerHeight||960)*Math.min(globalThis.devicePixelRatio||1,2);
-    this.telemetry={capacity:this.capacity,alive,gold,blue:alive-gold,emissionRate:rate,maxSize,power:this.power,mode:braking?'brake':thrust>.05?'thrust':speed>.04?'glide':'float',drawCalls:1,blending:'normal-alpha',shape:'projected-tapered-glint'};
+    this.telemetry={capacity:this.capacity,alive,gold,blue:alive-gold,emissionRate:rate,maxSize,power:this.power,brightness:this.material.uniforms.brightness.value,mode:braking?'brake':thrust>.05?'thrust':speed>.04?'glide':'float',drawCalls:1,blending:'normal-alpha',shape:'projected-tapered-glint'};
   }
   clear(){for(const p of this.particles)p.age=p.life;this.alphas.fill(0);this.sizes.fill(0);this.lengths.fill(0);this.emit=0;this.power=0;this.hasPrevious=false;this.outlets=[];if(this.telemetry)this.telemetry={...this.telemetry,alive:0,gold:0,blue:0,emissionRate:0,maxSize:0,power:0};for(const name of ['wakeAlpha','wakeSize','wakeLength'])this.geometry.attributes[name].needsUpdate=true;}
   dispose(){if(this.disposed)return;this.disposed=true;this.points.removeFromParent();this.geometry.dispose();this.material.dispose();}

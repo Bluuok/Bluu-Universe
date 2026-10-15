@@ -88,7 +88,7 @@ export class PaintFlowField {
       shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
         transformed+=flowAxis*sin(paintFlowTime*flowMotion.y+flowMotion.x)*${config.motion.amplitude.toFixed(4)};`);
     };
-    material.customProgramCacheKey=()=> 'directional-thick-paint-v2';
+    material.customProgramCacheKey=()=> 'directional-thick-paint-v3';
     for(const recipe of config.paths){
       if(recipe.enabled===false)continue;
       const {curve,normal}=this.makeCurve(recipe,vortex),length=curve.getLength(),perLane=Math.ceil(recipe.count/recipe.lanes);
