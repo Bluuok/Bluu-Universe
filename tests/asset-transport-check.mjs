@@ -1,4 +1,4 @@
-import {readFile,writeFile} from 'node:fs/promises';import {createHash} from 'node:crypto';import assert from 'node:assert/strict';
+import {readFile,writeFile,readdir} from 'node:fs/promises';import {createHash} from 'node:crypto';import assert from 'node:assert/strict';
 import {assembleAsset,loadTextureAsset} from '../src/core/AssetTransport.js';
 const base=process.env.TRANSPORT_URL||'http://127.0.0.1:4259/',response=await fetch(new URL('/assets/transport.json',base));assert.ok(response.ok);const manifest=await response.json(),checks=[];
 const nativeFetch=globalThis.fetch;globalThis.location={href:base};globalThis.fetch=(url,options)=>nativeFetch(new URL(url,base),options);
@@ -11,4 +11,5 @@ for(const [url,entry]of Object.entries(manifest.assets)){
  for(const address of [url,encodeURI(url)]){const loaded=await loadTextureAsset(loader,address,{transport:true});assert.deepEqual(loaded,original);await assert.rejects(()=>nativeFetch(blobURL));}
  checks.push({url,loaderUnicodeAndEncodedURL:true,blobRevoked:true,bytes:bytes.length,sha256:entry.sha256,parts:entry.parts.length,identical:true,missingAndCorruptRejected:true});
 }
-globalThis.fetch=nativeFetch;delete globalThis.location;assert.equal(checks.length,2);const report={at:new Date().toISOString(),method:'HTTP parts assembled by actual runtime helper, compared byte-for-byte with unchanged source PNGs; missing, truncated and same-length corrupted part rejection tested. Not GPU visual acceptance.',status:'passed',checks};await writeFile(process.env.TRANSPORT_REPORT||'tests/v21-transport.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report));
+globalThis.fetch=nativeFetch;delete globalThis.location;assert.equal(checks.length,2);
+const notices=await readdir('licenses');for(const file of notices)assert.deepEqual(Buffer.from(await(await fetch(new URL('/licenses/'+file,base))).arrayBuffer()),await readFile('licenses/'+file));const report={at:new Date().toISOString(),method:'HTTP parts assembled by actual runtime helper, compared byte-for-byte with unchanged source PNGs; missing, truncated and same-length corrupted part rejection tested. Not GPU visual acceptance.',status:'passed',checks,licenseFilesIdentical:notices.length};await writeFile(process.env.TRANSPORT_REPORT||'tests/v21-transport.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report));

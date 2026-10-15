@@ -1,3 +1,4 @@
+import {buildStaticMergedMesh,attachBoundsTree} from '../../vendor/hh-hang/colliderBuild.js';
 import * as THREE from 'three';
 import {ExtendedTriangle} from 'three-mesh-bvh';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -178,8 +179,20 @@ export class PaintFlowField {
     }else points=recipe.points.map(p=>new THREE.Vector3(...p));
     return {curve:new THREE.CatmullRomCurve3(points,false,'centripetal'),normal};
   }
+  // Camera-only clone: preserve rendered indices/attributes and body collision.
+  // This base-surface BVH does not reproduce the small shader-driven sway.
+  getCameraMeshes(){
+    if(this.disposed||!this.group.visible||!this.meshes.length)return [];
+    if(!this.cameraCollider){
+      this.cameraCollider=buildStaticMergedMesh(this.meshes);
+      if(!this.cameraCollider)throw Error('Paint camera geometry could not be merged');
+      attachBoundsTree(this.cameraCollider.geometry,{onReady:()=>{}});
+      this.cameraCollider.mesh.name='paint-surfaces';this.cameraCollider.mesh.updateMatrixWorld(true);
+    }
+    return [this.cameraCollider.mesh];
+  }
   setPigmentTexture(texture){const u=this.material?.userData.paintUniforms;if(u){u.oilPaintMap.value=texture||null;u.oilPaintLoaded.value=texture?1:0;}}
   update(dt,{enabled=true,paused=false,reducedMotion=false}={}){if(this.disposed||!this.config.enabled)return;if(enabled&&!paused&&!reducedMotion&&!this.motionQuery?.matches)this.time+=Math.min(Math.max(dt||0,0),.05);this.clockUniform.value=this.time;}
-  get telemetry(){return {enabled:this.config.enabled,disposed:this.disposed,strokes:this.strokeCount-this.blended.reduce((sum,p)=>sum+p.sourceParts-p.renderedParts,0),authoredStrokes:this.strokeCount,underpaint:this.underpaintCount,gold:this.goldCount,goldCoats:this.goldCount-this.blended.reduce((sum,p)=>sum+p.sourceGoldMarks,0),embeddedGoldMarks:this.blended.reduce((sum,p)=>sum+p.sourceGoldMarks,0),skippedForClearance:this.skipped,drawCalls:this.meshes.length,triangles:this.meshes.reduce((s,m)=>s+m.geometry.index.count/3,0),newTextures:0,blended:this.blended,paths:this.paths,passages:this.passages.map(p=>({id:p.id,front:p.ends[0].toArray(),center:p.ends[0].clone().lerp(p.ends[1],.5).toArray(),back:p.ends[1].toArray()})),time:this.time,motionAmplitude:this.config.motion.amplitude};}
-  dispose(){if(this.disposed)return;this.disposed=true;this.group.removeFromParent();for(const mesh of this.meshes)mesh.geometry.dispose();this.material?.dispose();}
+  get telemetry(){return {cameraProxy:{integrated:Boolean(this.cameraCollider),triangles:this.cameraCollider?.geometry.index.count/3||0,rendered:false,baseGeometry:true,shaderSway:this.config.motion.amplitude},enabled:this.config.enabled,disposed:this.disposed,strokes:this.strokeCount-this.blended.reduce((sum,p)=>sum+p.sourceParts-p.renderedParts,0),authoredStrokes:this.strokeCount,underpaint:this.underpaintCount,gold:this.goldCount,goldCoats:this.goldCount-this.blended.reduce((sum,p)=>sum+p.sourceGoldMarks,0),embeddedGoldMarks:this.blended.reduce((sum,p)=>sum+p.sourceGoldMarks,0),skippedForClearance:this.skipped,drawCalls:this.meshes.length,triangles:this.meshes.reduce((s,m)=>s+m.geometry.index.count/3,0),newTextures:0,blended:this.blended,paths:this.paths,passages:this.passages.map(p=>({id:p.id,front:p.ends[0].toArray(),center:p.ends[0].clone().lerp(p.ends[1],.5).toArray(),back:p.ends[1].toArray()})),time:this.time,motionAmplitude:this.config.motion.amplitude};}
+  dispose(){if(this.disposed)return;this.disposed=true;this.group.removeFromParent();for(const mesh of this.meshes)mesh.geometry.dispose();this.material?.dispose();if(this.cameraCollider){this.cameraCollider.geometry.dispose();this.cameraCollider.mesh.material.dispose();this.cameraCollider=null;}}
 }

@@ -1,4 +1,4 @@
-import {mkdir,readFile,readdir,writeFile,rm} from 'node:fs/promises';
+import {mkdir,readFile,readdir,writeFile,rm,cp} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
 
@@ -24,5 +24,6 @@ export function assetTransport(){
    await rm(path.join(output,relative));
   }}
   await visit(source);await mkdir(path.join(output,'assets'),{recursive:true});await writeFile(path.join(output,'assets/transport.json'),JSON.stringify(manifest));
+  await cp(path.join(root,'licenses'),path.join(output,'licenses'),{recursive:true});
  }};
 }
