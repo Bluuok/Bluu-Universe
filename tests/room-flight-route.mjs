@@ -1,5 +1,5 @@
 // Shared browser route: trusted input only, no product fixtures or teleport.
-export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false,timeout=45000}={}){
+export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false,timeout=45000,pulseNear=false}={}){
   const started=Date.now(),held=new Set(),trace=[],wrap=v=>Math.atan2(Math.sin(v),Math.cos(v));
   const keys=async wanted=>{for(const k of [...held])if(!wanted.includes(k)){await page.keyboard.up(k);held.delete(k);}for(const k of wanted)if(!held.has(k)){await page.keyboard.down(k);held.add(k);}};
   const center=async()=>{const v=page.viewportSize();await page.mouse.move(v.width/2,v.height/2);};
@@ -14,6 +14,18 @@ export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false
       if(s.state!=='SPACE')throw Error('Flight route left SPACE unexpectedly: '+s.state);
       const d=target.map((v,i)=>v-s.p[i]),distance=Math.hypot(...d),speed=Math.hypot(...s.v);
       if(!enter&&distance<radius){await center();await keys([s.f.inputMode==='relative-mouse'?'x':'s']);await page.waitForTimeout(450);await keys([]);console.log(JSON.stringify({waypoint:target,at:await page.evaluate(()=>starhaven.player)}));return;}
+      // Optional slow-feedback QA route: stop before reading/turning near a
+      // target, then issue a bounded real key pulse. No game state is written.
+      if(pulseNear&&s.f.inputMode==='relative-mouse'&&distance<12){
+        await keys(['x']);await page.waitForTimeout(180);
+        const settled=await page.evaluate(()=>({state:starhaven.state,p:starhaven.player}));
+        if(settled.state!=='SPACE')continue;
+        const remaining=target.map((v,i)=>v-settled.p[i]),length=Math.hypot(...remaining);
+        if(!enter&&length<radius){await keys([]);console.log(JSON.stringify({waypoint:target,at:settled.p,pulseNear:true}));return;}
+        await faceHeading(page,Math.atan2(-remaining[0],-remaining[2]),Math.atan2(remaining[1],Math.hypot(remaining[0],remaining[2])));
+        await keys(['w']);await page.waitForTimeout(Math.min(160,Math.max(30,(length-(enter?0:radius*.6))*70)));
+        await keys(['x']);await page.waitForTimeout(180);continue;
+      }
       const ye=wrap(Math.atan2(-d[0],-d[2])-s.f.yaw),pe=Math.atan2(d[1],Math.hypot(d[0],d[2]))-s.f.pitch;
       if(s.f.inputMode==='relative-mouse'){
         await lookBy(page,-ye/s.f.lookSensitivity,-pe/s.f.lookSensitivity);
@@ -37,9 +49,9 @@ export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false
     throw Error('Normal-input flight route timed out: '+JSON.stringify({target,trace:trace.slice(-8),observation:await page.evaluate(()=>({state:starhaven.state,p:starhaven.player,v:starhaven.velocity,f:starhaven.flight,passage:starhaven.passage}))}));
   }finally{await keys([]);await center();}
 }
-export async function flyIntoRoom(page){
-  await flyTo(page,[1.35,1.8,11],{radius:.45});
-  await flyTo(page,[1.35,1.15,6.2],{enter:true});
+export async function flyIntoRoom(page,options={}){
+  await flyTo(page,[1.35,1.8,11],{...options,radius:.45});
+  await flyTo(page,[1.35,1.15,6.2],{...options,enter:true});
 }
 
 // Relative look via the actual RMB fallback. Mouse recentering occurs only
