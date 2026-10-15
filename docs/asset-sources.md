@@ -1,6 +1,18 @@
 # Bluu Universe · 完整资源总表
 
-**2026-10-15 当前 RC71：无损部署传输、实体笔触相机避障。** 本地预览 http://127.0.0.1:4259/ ，构建 `index-D2Y-ihsj.js`，SHA-256 `4175603634499f01cc351a26c6135c47b7ecde8931e062903445e133c56b256a`；角色JSON SHA-256 `116155d645f126ad5cc43f77e11c155a2e6b895c2c6fafc5ea37360b36b53bc1`。
+**2026-10-15 当前RC72：项目册图片加载与恢复候选，最终复验中。** 本地预览 http://127.0.0.1:4259/ ，`index-B9FhTVrA.js`，SHA-256 `852cd6d6112296ec8e217114bdbcf9a3640a56cefdeb3c2080f40b754691dc84`；角色JSON SHA-256 `116155d645f126ad5cc43f77e11c155a2e6b895c2c6fafc5ea37360b36b53bc1`。
+
+| RC72资源／模块 | 使用分类 | 实际接入 |
+| --- | --- | --- |
+| ThreadCove／Clawtide／Folio原截图 | 直接使用 | 原public/assets/projects文件字节未改，无下载、压缩或替换。 |
+| ProjectBook／原DOM纸册／字体 | 本地模块局部适配 | 固定画框、decode请求代次、失败重试、焦点、关闭与重开恢复；真实页与翻页副本统一样式。 |
+| Apple交互感觉 | 仅参考 | 克制淡入和及时反馈，没有引入Apple代码或素材。 |
+| haefu／FlightWake／共享Joan室内与露台／6K星空／笔刷图集 | 直接复用既有成果 | 本轮业务修改不进入模型、绘画、控制、碰撞或相机模块；原许可、无损传输和8份部署通知保持。 |
+| Sites验收令牌 | 仅本次测试授权 | 隐藏stdin／进程内存／同源请求头，未写入仓库或日志；不属于产品新增认证功能。 |
+
+当前RC72未部署，Site仍RC71版本2。授权变化前的登录阻碍及旧构建通过结论仅为历史；当前结果以同版tests/v23-review.json为准，最终复验待补。笔触长槽和全场最差视角仍开放。
+
+**历史 RC71（2026-10-15）：无损部署传输、实体笔触相机避障。** 本地预览 http://127.0.0.1:4259/ ，构建 `index-D2Y-ihsj.js`，SHA-256 `4175603634499f01cc351a26c6135c47b7ecde8931e062903445e133c56b256a`；角色JSON SHA-256 `116155d645f126ad5cc43f77e11c155a2e6b895c2c6fafc5ea37360b36b53bc1`。
 
 站点 [Bluu Universe](https://bluu-universe.steady-teal-4820.chatgpt.site) 已成功部署RC71（Sites版本2），保持既有owner-private访问范围。发布源提交b5621647e98ca69b4ea1accfbe1e5ece1b4fb61c，与本地通过测试的构建字节一致；GitHub实现提交b29e116已推送。公开GitHub为 [Bluuok/Bluu-Universe](https://github.com/Bluuok/Bluu-Universe)。旧“尚未上线”和“实体笔触未接相机BVH”仅是历史状态，现以本段及同构建证据为准。私有站点登录后的线上键鼠验收尚未完成，自动审批拒绝生成免登录测试令牌，等待明确授权或正常登录；没有使用其他途径绕过。
 

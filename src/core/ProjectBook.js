@@ -12,6 +12,13 @@ export class ProjectBook {
     this.animations = new Set();
     this.status = 'closed';
     this.tabs = [...panel.querySelectorAll('[data-book-page]')];
+    this.mediaFrame = panel.querySelector('.book-media');
+    this.image = panel.querySelector('#project-image');
+    this.mediaRevision = 0;
+    panel.querySelector('#book-media-retry').addEventListener('click',()=>{
+      if(!this.mediaSource)return;
+      this.showMedia('loading');this.watchMedia();this.image.removeAttribute('src');this.image.src=this.mediaSource;
+    },options);
     this.tabs.forEach(button => button.addEventListener('click', () => this.turn(Number(button.dataset.bookPage)),options));
     panel.querySelector('#book-prev').addEventListener('click',()=>this.turn(this.page-1),options);
     panel.querySelector('#book-next').addEventListener('click',()=>this.turn(this.page+1),options);
@@ -30,7 +37,7 @@ export class ProjectBook {
   }
 
   get duration() { return matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 360; }
-  dispose(){this.events.abort();this.reset();}
+  dispose(){this.events.abort();this.reset();this.image.onload=this.image.onerror=null;}
   cancel() {
     this.revision++; this.turnRevision++;
     for (const animation of this.animations) animation.cancel();
@@ -68,6 +75,7 @@ export class ProjectBook {
 
   async close() {
     if (this.panel.hidden) return true;
+    this.mediaRevision++;
     const current = this.presentation();
     this.cancel(); const revision = this.revision;
     this.status = 'closing'; this.panel.inert = true;
@@ -77,7 +85,44 @@ export class ProjectBook {
     return true;
   }
 
-  reset() { this.cancel(); this.panel.hidden = true; this.panel.inert = false; this.status = 'closed'; }
+  reset() { this.mediaRevision++;this.cancel(); this.panel.hidden = true; this.panel.inert = false; this.status = 'closed'; }
+
+  watchMedia() {
+    const revision=++this.mediaRevision;
+    this.image.onload=()=>this.mediaLoaded(revision);
+    this.image.onerror=()=>{if(revision===this.mediaRevision&&this.mediaSource&&this.image.complete&&!this.image.naturalWidth)this.showMedia('error');};
+    return revision;
+  }
+
+  showMedia(state) {
+    this.mediaFrame.dataset.state=state;
+    this.mediaFrame.setAttribute('aria-busy',String(state==='loading'));
+    this.image.hidden=state!=='loaded';
+    this.panel.querySelector('.book-empty').hidden=state!=='empty';
+    this.panel.querySelector('.book-media-status').hidden=state==='loaded'||state==='empty';
+    this.panel.querySelector('#book-media-message').textContent=state==='error'?'这张画面暂时没有展开':'正在展开画面';
+    const retry=this.panel.querySelector('#book-media-retry');
+    if(state!=='error'&&document.activeElement===retry)this.tabs[this.page].focus({preventScroll:true});
+    retry.hidden=state!=='error';
+  }
+
+  async mediaLoaded(revision) {
+    const source=this.mediaSource;
+    try{await this.image.decode();}catch{if(revision===this.mediaRevision&&source===this.mediaSource)this.showMedia('error');return;}
+    if(revision===this.mediaRevision&&source&&source===this.mediaSource&&this.image.naturalWidth>0)this.showMedia('loaded');
+  }
+
+  setMedia(source,alt) {
+    this.image.alt=alt;
+    if(!source){this.mediaRevision++;this.mediaSource=null;this.image.onload=this.image.onerror=null;this.image.removeAttribute('src');this.showMedia('empty');return;}
+    if(this.mediaSource===source){
+      const revision=this.watchMedia();
+      if(this.image.complete&&this.image.naturalWidth>0)this.mediaLoaded(revision);
+      else if(this.image.complete)this.showMedia('error');
+      return;
+    }
+    this.mediaSource=source;this.showMedia('loading');this.watchMedia();this.image.src=source;
+  }
 
   async turn(requested) {
     if (this.panel.hidden || this.status === 'closing') return;
@@ -117,10 +162,8 @@ export class ProjectBook {
     previous.disabled = this.page === 0;
     next.disabled = this.page === 2;
     const media = p.media?.[this.page === 1 && p.media.length > 1 ? 1 : 0];
-    const image = panel.querySelector('#project-image'), src = media?.src || p.image || p.screenshot;
-    image.hidden = !src; if (src && image.getAttribute('src') !== src) image.src = src;
-    image.alt = media?.alt || `${p.name || p.title} 的真实项目截图`;
-    panel.querySelector('.book-empty').hidden = Boolean(src);
+    const src = media?.src || p.image || p.screenshot;
+    this.setMedia(src,media?.alt || `${p.name || p.title} 的真实项目截图`);
     set('book-caption', src ? media?.caption || p.mediaNote || '真实组件截图，使用受控样例数据。' : '作品、研究与开源记录');
     const details = p.details || p.highlights || [];
     const selected = this.page === 0 ? details.slice(0, 2) : this.page === 1 ? details : [];
