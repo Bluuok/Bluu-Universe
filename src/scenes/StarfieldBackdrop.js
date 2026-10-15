@@ -1,3 +1,4 @@
+import {loadTextureAsset} from '../core/AssetTransport.js';
 import * as THREE from 'three';
 import {sampleSpiralCluster} from './sky/SpiralCluster.js';
 import {
@@ -231,7 +232,7 @@ export class StarfieldBackdrop {
       { id: 'pigment', path: this.config.pigment.url },
     ];
     const results = await Promise.allSettled(definitions.map(async definition => {
-      const texture = await this.loader.loadAsync(uri(definition.path));
+      const texture = await loadTextureAsset(this.loader,uri(definition.path));
       this.ownedTextures.add(texture); texture.colorSpace = THREE.SRGBColorSpace;
       texture.anisotropy = 8; texture.wrapS = definition.id === 'panorama' ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
       texture.wrapT = THREE.ClampToEdgeWrapping; texture.needsUpdate = true;
