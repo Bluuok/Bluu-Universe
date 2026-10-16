@@ -1,7 +1,7 @@
+import {runtimeBuildIdentity} from './runtime-build-identity.mjs';
 import {chromium} from '@playwright/test';
 import {flyTo,flyIntoRoom} from './room-flight-route.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
-import {createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
 const out=process.env.CONTINUOUS_OUT||'screenshots/v14-rc63-continuous';await mkdir(out,{recursive:true});
 const report={started:new Date().toISOString(),method:'One normal load, one page, three consecutive real flight/entry/project/exit routes. No reload, Home, or pose/state/camera writes. Trusted mouse/keyboard and passive telemetry.',rounds:[],errors:[],requests:[]};
@@ -12,7 +12,7 @@ page.on('pageerror',e=>report.errors.push(e.message));page.on('requestfailed',r=
 const snap=()=>page.evaluate(()=>({state:starhaven.state,passage:starhaven.passage,player:starhaven.player,keys:starhaven.keys,room:starhaven.inspect.roomEntities()}));
 try{
  await page.goto(process.env.GOAL_URL||'http://127.0.0.1:4259/');await page.waitForFunction(()=>window.starhaven?.ready);await page.locator('#loading').waitFor({state:'hidden'});
- const bundle=await page.locator('script[src*="/assets/index-"]').getAttribute('src');report.build={bundle,sha256:createHash('sha256').update(Buffer.from(await(await fetch(new URL(bundle,page.url()))).arrayBuffer())).digest('hex')};
+ report.build=await runtimeBuildIdentity(page);
  const identity=(await snap()).room;
  const routes=[{points:[[-3,3,10]],projects:['threadcove']},{points:[[12,5,15],[12,7,-10],[-10,7,-10],[-10,5,10]],projects:['clawtide']},{points:[[12,-3,12],[-12,10,12],[-2,3,10]],riseAfterFirst:true,projects:['contributions','contact']}];
  for(const [index,route]of routes.entries()){

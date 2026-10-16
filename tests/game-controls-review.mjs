@@ -1,6 +1,6 @@
+import {runtimeBuildIdentity} from './runtime-build-identity.mjs';
 import {chromium} from '@playwright/test';
 import {mkdir,writeFile} from 'node:fs/promises';
-import {createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
 import {flyTo,faceHeading} from './room-flight-route.mjs';
 
@@ -17,7 +17,7 @@ async function stop(){await page.keyboard.down('x');await page.waitForTimeout(45
 async function check(name,fn){const evidence=await fn();report.checks.push({name,status:'passed',evidence});console.log(JSON.stringify({name,status:'passed'}));}
 try{
  await page.goto('http://127.0.0.1:4259/');await page.waitForFunction(()=>window.starhaven?.ready);await page.locator('#loading').waitFor({state:'hidden'});
- const bundle=await page.locator('script[src*="/assets/index-"]').getAttribute('src');report.build={bundle,sha256:createHash('sha256').update(Buffer.from(await(await fetch(new URL(bundle,page.url()))).arrayBuffer())).digest('hex')};
+ report.build=await runtimeBuildIdentity(page);
  await flyTo(page,[-15,12,-15],{radius:1});await faceHeading(page,0,0);
  await check('Visible start button obtains actual mouse capture',async()=>{await page.locator('#look-mode').click();await page.waitForFunction(()=>document.pointerLockElement?.id==='world');await page.mouse.move(mx,my);await page.waitForTimeout(60);const a=await snap();assert.equal(a.flight.mouseCaptured,true);assert.equal(a.flight.paused,false);return a;});
  await check('Relative right motion turns right immediately; stopping holds heading',async()=>{const before=await snap(),index=await page.evaluate(()=>__gameInputs.length);await mouse(160,0);const after=await snap(),events=await page.evaluate(i=>__gameInputs.slice(i).filter(e=>e.type==='pointermove'),index);const dx=events.reduce((s,e)=>s+e.dx,0);assert(dx>0);assert.ok(Math.abs(wrap(after.flight.yaw-before.flight.yaw+dx*after.flight.lookSensitivity))<1e-6);await page.waitForTimeout(600);const held=await snap();assert.equal(held.flight.yaw,after.flight.yaw);return {dx,before:before.flight.yaw,after:after.flight.yaw,held:held.flight.yaw};});

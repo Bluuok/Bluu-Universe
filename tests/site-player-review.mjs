@@ -1,3 +1,4 @@
+import {runtimeBuildIdentity} from './runtime-build-identity.mjs';
 import {chromium} from '@playwright/test';
 import {flyTo,flyIntoRoom,faceHeading} from './room-flight-route.mjs';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';import {createHash} from 'node:crypto';import assert from 'node:assert/strict';
@@ -26,7 +27,7 @@ try{
   assert.ok(ready,'Normal sign-in timed out');report.errors=[];report.requests=[];
  }
  else await page.waitForFunction(()=>window.starhaven?.ready,null,{timeout:120000});
- await page.locator('#loading').waitFor({state:'hidden'});const bundle=await page.locator('script[src*="/assets/index-"]').getAttribute('src'),bytes=Buffer.from(await(await fetchSite(bundle)).arrayBuffer()),hash=b=>createHash('sha256').update(b).digest('hex');report.build={bundle,sha256:hash(bytes),localSHA256:input.expectedSHA256||hash(await readFile('dist/assets/'+bundle.split('/').at(-1))),characterManifestSHA256:hash(Buffer.from(await(await fetchSite('/assets/character/manifest.json')).arrayBuffer()))};assert.equal(report.build.sha256,report.build.localSHA256);await shot('00-production-loaded');
+ await page.locator('#loading').waitFor({state:'hidden'});const hash=b=>createHash('sha256').update(b).digest('hex');report.build={...await runtimeBuildIdentity(page,fetchSite),characterManifestSHA256:hash(Buffer.from(await(await fetchSite('/assets/character/manifest.json')).arrayBuffer()))};report.build.localSHA256=input.expectedSHA256||hash(await readFile('dist/assets/'+report.build.bundle.split('/').at(-1)));report.build.localCSSSHA256=input.expectedCSSSHA256||hash(await readFile('dist/assets/'+report.build.css.split('/').at(-1)));assert.equal(report.build.sha256,report.build.localSHA256);assert.equal(report.build.cssSHA256,report.build.localCSSSHA256);await shot('00-production-loaded');
  const identity=(await snapshot()).room;
  const routes=[{points:[[-15,12,-15],[-119,-28,-82],[-112,-22,-111],[-15,12,-15]],id:'threadcove'},{points:[[12,7,15],[12,7,-10],[-10,7,-10],[-10,5,10],[-1.8,3,9.5]],id:'clawtide'},{points:[[12,-3,12],[-12,10,12],[-2,3,10]],id:'contributions'}];
  for(const [index,route]of routes.entries()){

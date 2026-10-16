@@ -12,7 +12,7 @@ export const ViewFraming = {
   // Authored satellite directions stay outside the studio shell. The final
   // view is fitted against the actual project panel rectangle.
   satelliteProjectOffsets: { threadcove: [-9.2, 3.4, 5.2], clawtide: [3.1, 1.8, 6.4] },
-  roomMargins: { left: 24, right: 24, top: 92, bottom: 96, mobileBottom: 180 },
+  roomMargins: { left: 24, right: 24, top: 92, bottom: 96 },
 };
 export default ViewFraming;
 

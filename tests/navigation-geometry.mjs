@@ -46,9 +46,9 @@ try {
  const object=new THREE.Object3D();object.position.set(11,2,11);
  const controller=new SpaceController({object,state,bounds:{min:bounds.min.toArray(),max:bounds.max.toArray()},collision,onEnter:()=>{},canMove:()=>canMove});
  for(const [key,axis,side] of [['KeyD','x','max'],['KeyA','x','min'],['Space','y','max'],['ShiftLeft','y','min'],['KeyS','z','max'],['KeyW','z','min']]){
-   object.position.set(11,2,11);controller.clear();controller.setKey(key,true);
+   object.position.set(0,0,0);object.position[axis]=limits[side][axis]+(side==='max'?-25:25);controller.clear();controller.resetHeading(0);controller.setKey(key,true);
    for(let i=0;i<420;i++)controller.update(.05,i*.05);
-   check(`trusted-controller math keeps ${key} full envelope in bounds`,()=>{assert.ok(object.position[axis]<=limits.max[axis]+1e-8&&object.position[axis]>=limits.min[axis]-1e-8);assert.ok(Math.abs(object.position[axis]-limits[side][axis])<.15);});
+   check(`controller CPU approach keeps ${key} full envelope in bounds`,()=>{assert.ok(object.position[axis]<=limits.max[axis]+1e-8&&object.position[axis]>=limits.min[axis]-1e-8);assert.ok(Math.abs(object.position[axis]-limits[side][axis])<.15);});
  }
  check('camera transition rejects movement keys and resets inertia',()=>{controller.clear();canMove=false;controller.setKey('KeyW',true);assert.equal(controller.keys.size,0);controller.velocity.set(2,1,2);const before=object.position.clone();controller.update(.05,0);assert.ok(object.position.equals(before));assert.equal(controller.velocity.length(),0);});
  const camera=new THREE.PerspectiveCamera(43,1.5,.1,650),director=new CameraDirector(camera,{focusOffset:[-1.4,0,0]});director.setViewport(1440,960);

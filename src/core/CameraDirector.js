@@ -118,15 +118,12 @@ export class CameraDirector {
   getSafeRect(kind = 'SPACE') {
     const { width: w, height: h } = this.viewport;
     if (kind === 'SPACE') {
-      if (w >= 800) {
-        const r = this.exploring ? this.framing.desktopFlight : this.framing.desktopSpace;
-        return { left: r.left * w, right: r.right * w, top: r.top * h, bottom: r.bottom * h };
-      }
-      return { left: 16, right: w - 16, top: Math.min(260, h * 0.32), bottom: Math.min(610, h * 0.74) };
+      const r = this.exploring ? this.framing.desktopFlight : this.framing.desktopSpace;
+      return { left: r.left * w, right: r.right * w, top: r.top * h, bottom: r.bottom * h };
     }
     const m = this.framing.roomMargins;
     return { left: m.left, right: w - m.right, top: m.top,
-      bottom: h - (w < 800 ? m.mobileBottom : m.bottom) };
+      bottom: h - m.bottom };
   }
 
   getFramingBounds(kind = 'SPACE', player = null) {
@@ -155,12 +152,8 @@ export class CameraDirector {
   getFramedProjectView(position, target, bounds, panel) {
     const { width: w, height: h } = this.viewport;
     const gap = 24;
-    // Desktop panels sit at the right; the retained narrow layout puts the
-    // panel below the subject. Use real CSS geometry rather than a second
-    // camera or a duplicate breakpoint/panel-width calculation.
-    const safeRect = panel.left > w * .25
-      ? { left: 24, right: panel.left-gap, top: 112, bottom: h-76 }
-      : { left: 16, right: w-16, top: 94, bottom: panel.top-16 };
+    // Fit beside the actual right-hand project panel as the browser resizes.
+    const safeRect = { left: 24, right: panel.left-gap, top: 112, bottom: h-76 };
     // A nearly full-width/height panel leaves no useful subject rectangle.
     // Preserve the safe authored view instead of shrinking the subject to a
     // speck by inventing a 32px fit area.

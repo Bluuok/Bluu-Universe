@@ -1,7 +1,7 @@
+import {runtimeBuildIdentity} from './runtime-build-identity.mjs';
 import {chromium} from '@playwright/test';
 import {flyTo,flyIntoRoom,faceHeading} from './room-flight-route.mjs';
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
-import {createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 
@@ -53,7 +53,7 @@ try{
     current={id,status:'running',steps:[],contacts:[]};report.routes.push(current);page=await context.newPage();
     page.on('pageerror',e=>report.runtimeErrors.push({route:id,message:e.message}));page.on('console',m=>{if(m.type()==='error')report.runtimeErrors.push({route:id,message:m.text()});});page.on('requestfailed',r=>report.requestFailures.push({route:id,url:r.url(),error:r.failure()?.errorText}));
     await page.goto(url,{waitUntil:'networkidle'});await page.waitForFunction(()=>starhaven?.ready,{timeout:120000});await page.mouse.move(720,480);await page.waitForTimeout(800);
-    const script=await page.evaluate(()=>[...document.scripts].find(s=>s.src.includes('/assets/index-'))?.src);const bytes=Buffer.from(await(await fetch(script)).arrayBuffer());const build={url:script,sha256:createHash('sha256').update(bytes).digest('hex')};if(report.build)assert.deepEqual(build,report.build);else report.build=build;
+    const build=await runtimeBuildIdentity(page);if(report.build)assert.deepEqual(build,report.build);else report.build=build;
     await shot('normal-spawn');
     if(id===1){
       await go([-15,12,-15],'west-clear');

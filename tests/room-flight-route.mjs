@@ -22,7 +22,10 @@ export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false
         if(settled.state!=='SPACE')continue;
         const remaining=target.map((v,i)=>v-settled.p[i]),length=Math.hypot(...remaining);
         if(!enter&&length<radius){await keys([]);console.log(JSON.stringify({waypoint:target,at:settled.p,pulseNear:true}));return;}
-        await faceHeading(page,Math.atan2(-remaining[0],-remaining[2]),Math.atan2(remaining[1],Math.hypot(remaining[0],remaining[2])));
+        // Match the pilot's authored pitch cap; a near-vertical target cannot
+        // converge to an angle outside that range through real mouse input.
+        const pitch=Math.max(-1.3,Math.min(1.3,Math.atan2(remaining[1],Math.hypot(remaining[0],remaining[2]))));
+        await faceHeading(page,Math.atan2(-remaining[0],-remaining[2]),pitch);
         await keys(['w']);await page.waitForTimeout(Math.min(160,Math.max(30,(length-(enter?0:radius*.6))*70)));
         await keys(['x']);await page.waitForTimeout(180);continue;
       }

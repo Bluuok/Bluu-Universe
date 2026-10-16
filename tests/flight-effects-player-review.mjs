@@ -1,3 +1,4 @@
+import {runtimeBuildIdentity} from './runtime-build-identity.mjs';
 import {chromium} from '@playwright/test';
 import {flyTo,faceHeading} from './room-flight-route.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
@@ -11,7 +12,7 @@ page.on('pageerror',e=>report.errors.push(e.message));page.on('requestfailed',r=
 async function shot(name){const file=`${out}/${name}.png`;await page.screenshot({path:file});report.steps.push({name,file,...await page.evaluate(()=>({state:starhaven.state,player:starhaven.player,velocity:starhaven.velocity,flight:starhaven.flight,rendering:starhaven.rendering}))});console.log(name);}
 try{
  await page.goto('http://127.0.0.1:4259/');await page.waitForFunction(()=>window.starhaven?.ready);await page.locator('#loading').waitFor({state:'hidden'});
- const bundle=await page.locator('script[src*="/assets/index-"]').getAttribute('src'),hash=b=>createHash('sha256').update(b).digest('hex');report.build={bundle,sha256:hash(Buffer.from(await(await fetch(new URL(bundle,page.url()))).arrayBuffer())),manifestSHA256:hash(Buffer.from(await(await fetch(new URL('/assets/character/manifest.json',page.url()))).arrayBuffer()))};
+ const hash=b=>createHash('sha256').update(b).digest('hex');report.build={...await runtimeBuildIdentity(page),manifestSHA256:hash(Buffer.from(await(await fetch(new URL('/assets/character/manifest.json',page.url()))).arrayBuffer()))};
  await flyTo(page,[-15,12,-20],{radius:.7});await faceHeading(page,0,0);await shot('00-idle');
  // Tail art does not require OS pointer capture; the separate controls suite
  // verifies capture. Use the supported real RMB drag here for reproducibility.

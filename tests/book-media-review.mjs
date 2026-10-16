@@ -1,7 +1,7 @@
 import {chromium} from '@playwright/test';
 import {flyIntoRoom} from './room-flight-route.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
-import {createHash} from 'node:crypto';
+import {runtimeBuildIdentity} from './runtime-build-identity.mjs';
 import assert from 'node:assert/strict';
 const out=process.env.BOOK_MEDIA_OUT||'screenshots/v23-book-media';await mkdir(out,{recursive:true});
 const report={started:new Date().toISOString(),method:'Headed installed Chrome, normal spawn and actual keyboard/RMB flight into shared room. Real clicks/keys; delayed/failed screenshot responses are explicit network fixtures. No pose/state/camera writes.',checks:[],errors:[],requests:[]};
@@ -16,7 +16,7 @@ try{
  await page.route('**/assets/projects/threadcove-home.png',async route=>{if(!homeHeld){homeHeld=true;await new Promise(resolve=>{releaseHome=resolve;});await route.abort('failed').catch(()=>{});return;}await route.continue().catch(()=>{});});
  await page.route('**/assets/projects/threadcove-conversation.png',async route=>{if(!detailsHeld){detailsHeld=true;await new Promise(resolve=>{releaseDetails=resolve;});}await route.continue().catch(()=>{});});
  await page.route('**/assets/projects/clawtide-chat.png',route=>{if(failClaw){failClaw=false;return route.abort('failed');}return route.continue();});
- await page.goto(process.env.BOOK_MEDIA_URL||'http://127.0.0.1:4259/');await page.waitForFunction(()=>window.starhaven?.ready);await page.locator('#loading').waitFor({state:'hidden'});const bundle=await page.locator('script[src*="/assets/index-"]').getAttribute('src');report.build={bundle,sha256:createHash('sha256').update(Buffer.from(await(await fetch(new URL(bundle,page.url()))).arrayBuffer())).digest('hex')};
+ await page.goto(process.env.BOOK_MEDIA_URL||'http://127.0.0.1:4259/');await page.waitForFunction(()=>window.starhaven?.ready);await page.locator('#loading').waitFor({state:'hidden'});report.build=await runtimeBuildIdentity(page);
  await flyIntoRoom(page);await page.locator('[data-exhibit="threadcove"]').click();await page.waitForFunction(()=>starhaven.book.status==='open');
  const loading=await shot('01-delayed-image');assert.equal(loading.state,'loading');assert.equal(loading.imageHidden,true);assert.ok(loading.rect.height>120);assert.equal(loading.busy,'true');assert.ok(releaseHome);
  await page.keyboard.press('Escape');await page.waitForFunction(()=>starhaven.state==='ROOM'&&!starhaven.cameraProgress.transition);releaseHome();await page.waitForFunction(()=>document.querySelector('#project-image').complete&&!document.querySelector('#project-image').naturalWidth);
@@ -36,7 +36,7 @@ try{
  await page.keyboard.press('ArrowRight');await page.waitForFunction(()=>starhaven.book.status==='open'&&starhaven.book.page===1);await loaded();await page.keyboard.press('ArrowLeft');await page.waitForFunction(()=>window.__heldMediaDecodes.length>=2&&starhaven.book.status==='open');
  await page.evaluate(()=>__heldMediaDecodes[0].reject(new DOMException('Injected obsolete decode','AbortError')));await page.waitForTimeout(80);assert.equal((await read()).state,'loading');
  await page.evaluate(async()=>{await __nativeMediaDecode();__heldMediaDecodes.at(-1).resolve();document.querySelector('#project-image').decode=__nativeMediaDecode;});await loaded();await shot('05b-obsolete-same-url-decode');report.obsoleteDecodeIgnored=true;
- await page.setViewportSize({width:390,height:844});await page.waitForTimeout(400);const narrow=await shot('06-narrow');assert.ok(narrow.rect.width<=390);assert.ok(await page.locator('#project-close').isVisible());
+ await page.setViewportSize({width:900,height:650});await page.waitForTimeout(400);const compact=await shot('06-desktop-window');assert.ok(compact.rect.width<=900);assert.ok(await page.locator('#project-close').isVisible());
  await page.setViewportSize({width:1440,height:960});await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator('#project-image').evaluate(el=>getComputedStyle(el).animationName),'none');await page.keyboard.press('Escape');await page.waitForFunction(()=>starhaven.state==='ROOM'&&!starhaven.cameraProgress.transition);
  await page.locator('[data-exhibit="contact"]').click();await page.waitForFunction(()=>starhaven.book.status==='open');const empty=await shot('07-no-media');assert.equal(empty.state,'empty');assert.ok(await page.locator('.book-empty').isVisible());assert.equal(empty.busy,'false');await page.keyboard.press('Escape');await page.waitForFunction(()=>starhaven.state==='ROOM'&&!starhaven.cameraProgress.transition);await page.locator('#exit').click();await page.waitForFunction(()=>starhaven.state==='SPACE'&&!starhaven.cameraProgress.transition);
  report.inputs=await page.evaluate(()=>({trusted:__mediaInputs.filter(Boolean).length,untrusted:__mediaInputs.filter(v=>!v).length}));assert.equal(report.inputs.untrusted,0);assert.deepEqual(report.errors,[]);assert.ok(report.requests.every(r=>r.path.startsWith('/assets/projects/')&&['net::ERR_FAILED','net::ERR_ABORTED'].includes(r.reason)));report.expectedNetworkFailures=report.requests;report.status='passed';

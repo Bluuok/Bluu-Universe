@@ -113,7 +113,7 @@ new Interaction({canvas:$('world'),camera,state,getObjects:()=>state.value===STA
 window.addEventListener('blur',releaseFlightPointer);
 document.addEventListener('pointerover',e=>{if(e.target.closest?.('button,a,aside,#project-panel')){releaseFlightPointer();$('hotspot-label').hidden=true;if(!e.target.closest('[data-exhibit]'))highlightExhibit(null);}});
 document.addEventListener('pointerdown',e=>{if(!$('catalog').hidden&&!e.target.closest?.('#catalog,#project-toggle'))setCatalog(false);});
-document.addEventListener('pointerdown',e=>{if(e.target.closest?.('button,a,aside,#project-panel')&&!e.target.closest?.('[data-move]'))releaseFlightPointer();},true);
+document.addEventListener('pointerdown',e=>{if(e.target.closest?.('button,a,aside,#project-panel'))releaseFlightPointer();},true);
 window.addEventListener('blur',()=>pauseFlight(true));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseFlight(true);});
 $('pause-flight').onclick=()=>pauseFlight(!flightPaused);
@@ -122,8 +122,7 @@ const labels=[];
 function highlightExhibit(id){room.setExhibitFocus(id,reducedMotion.matches);for(const {btn,h}of labels)btn.classList.toggle('is-active',h.id===id);}
 $('hotspots').setAttribute('aria-label','房间展品');function buildLabels(){for(const h of room.hotspots){const btn=document.createElement('button');btn.className='hotspot';btn.dataset.exhibit=h.id;btn.textContent=ProjectRegistry[h.id]?.name||h.id;btn.addEventListener('pointerenter',()=>highlightExhibit(h.id));btn.addEventListener('pointerleave',()=>highlightExhibit(btn.matches(':focus-visible')?h.id:null));btn.addEventListener('focus',()=>highlightExhibit(h.id));btn.addEventListener('blur',()=>highlightExhibit(null));btn.addEventListener('click',()=>openProject(h.id));$('hotspots').append(btn);labels.push({btn,h});}}
 function updateLabels(){
-  const compact=innerWidth<=800, margin=compact?14:24;
-  const top=compact?94:105, bottom=innerHeight-(compact?164:148);
+  const margin=24,top=105,bottom=innerHeight-148;
   const positioned=[];
   const projected=labels.map(label=>({...label,v:label.h.anchor.clone().project(camera)}));
   projected.sort((a,b)=>b.v.y-a.v.y);
@@ -139,7 +138,7 @@ function updateLabels(){
     const step=height+9;
     let y=nominalY;
     // Keep the existing exhibit labels next to their projected objects; avoid
-    // clipping and overlapping touch targets in a narrow physical overview.
+    // clipping and overlapping labels when the browser window is resized.
     for(const shift of [0,-1,1,-2,2,-3,3,-4,4]){
       const candidate=THREE.MathUtils.clamp(nominalY+shift*step,top+height/2,bottom-height/2);
       const overlaps=positioned.some(p=>Math.abs(x-p.x)<(width+p.width)/2+7&&Math.abs(candidate-p.y)<(height+p.height)/2+7);
@@ -170,7 +169,6 @@ function refreshUI(){
   $('controls').hidden=!state.moving;
   $('project-toggle').disabled=state.locked;
   $('location').hidden=viewingProject;
-  $('mobile-controls').style.visibility=state.value===STATES.SPACE?'visible':'hidden';
   $('room-toolbar').hidden=!inside||viewingProject;
   $('location-text').textContent=inside?'工作室 · 作品展览':state.value===STATES.DOCKING?'正在靠港':state.value===STATES.TRANSITION?'正在穿过门廊':'星海 · 自由漫游';
   $('hotspot-label').hidden=true;
@@ -193,7 +191,6 @@ document.addEventListener('pointerlockchange',()=>{
 document.addEventListener('pointerlockerror',()=>toast('鼠标捕获不可用：按住右键拖动转向，WASD 移动。'));
 window.addEventListener('keydown',e=>{if(e.code==='Tab'&&document.pointerLockElement)document.exitPointerLock();});
 state.onChange(()=>{if(!state.moving&&document.pointerLockElement)document.exitPointerLock();});
-document.querySelectorAll('[data-move]').forEach(button=>{button.addEventListener('pointerdown',e=>{e.preventDefault();button.setPointerCapture(e.pointerId);controller.setKey(button.dataset.move,true);});['pointerup','pointercancel','lostpointercapture'].forEach(name=>button.addEventListener(name,()=>controller.setKey(button.dataset.move,false)));});
 function buildCatalog(){for(const [id,p] of Object.entries(ProjectRegistry)){const btn=document.createElement('button');btn.className='catalog-item';const name=document.createElement('span');name.textContent='↗';btn.append(document.createTextNode(p.name||p.title),name);const small=document.createElement('small');small.textContent=p.category||'项目';btn.append(small);btn.onclick=()=>openProject(id);$('catalog-items').append(btn);}}
 window.addEventListener('resize',()=>{director.setViewport(innerWidth,innerHeight);renderer.setSize(innerWidth,innerHeight);if(state.value===STATES.PROJECT){const h=(projectOrigin===STATES.ROOM?room.hotspots:space.hotspots).find(h=>h.id===selectedProject);if(h?.camera){const c=projectCamera(h,selectedProject);director.moveTo(c.position,c.target,uiDuration(.35));}}else if(state.value===STATES.ROOM&&director.mode!=='INSPECT'){const c=roomOverview();director.moveTo(c.position,c.target,uiDuration(.35));}});
 // Read-only observability and concrete navigation actions for local runtime verification.

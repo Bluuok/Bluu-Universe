@@ -1,4 +1,5 @@
 import {chromium} from '@playwright/test';
+import {runtimeBuildIdentity} from './runtime-build-identity.mjs';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
@@ -13,9 +14,8 @@ try{
   try{
    page.on('pageerror',e=>item.errors.push(e.message));page.on('requestfailed',r=>item.requests.push({url:r.url(),reason:r.failure()?.errorText}));
    await page.route(pattern,r=>{item.interceptions++;if(invalid==='corrupt')return r.fetch().then(async response=>{const body=await response.body();body[0]^=1;return r.fulfill({response,body});});return invalid?r.fulfill({contentType:'application/json',body:'{invalid'}):r.abort();});
-   await page.goto(url);const bundle=await page.locator('script[src*="/assets/index-"]').getAttribute('src');
-   const sha=createHash('sha256').update(Buffer.from(await(await fetch(new URL(bundle,url))).arrayBuffer())).digest('hex');
-   if(report.build)assert.equal(report.build.sha256,sha);else report.build={bundle,sha256:sha};
+   await page.goto(url);const build=await runtimeBuildIdentity(page);
+   if(report.build)assert.deepEqual(report.build,build);else report.build=build;
    if(name.startsWith('required')){await page.waitForFunction(()=>document.querySelector('#loading p')?.textContent.includes('星港暂时未能加载'),{timeout:25000});item.result=await page.evaluate(()=>({ready:window.starhaven?.ready,text:document.querySelector('#loading p').textContent}));assert.ok(!item.result.ready);}
    else{await page.waitForFunction(()=>window.starhaven?.ready,{timeout:45000});item.result=await page.evaluate(()=>({ready:starhaven.ready,content:starhaven.projectContent}));assert.equal(item.result.content.loaded,false);}
    assert.ok(item.interceptions>0);assert.deepEqual(item.errors,[]);item.screenshot=`${out}/${name}.png`;await page.screenshot({path:item.screenshot});item.status='passed';

@@ -108,7 +108,7 @@ export function createFlybys(scene, { random = Math.random } = {}) {
     spawned++;
 
     // A sky plane behind the planets. Use the actual off-axis projection so
-    // screen framing also works with the desktop sidebar and mobile view offset.
+    // screen framing follows the project sidebar and resized browser viewport.
     const depth = Math.min(360, camera.far * .25);
     const projection = camera.projectionMatrix.elements;
     const halfHeight = depth / projection[5];
