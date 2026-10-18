@@ -29,6 +29,7 @@ export class FlightLookInput {
     this.onError = onError;
     this.drag = null;
     this.wasLocked = doc.pointerLockElement === canvas;
+    this.checkLockWarp = false;
 
     this.contextMenu = event => event.preventDefault();
     this.down = event => {
@@ -54,11 +55,20 @@ export class FlightLookInput {
     this.mousemove = event => {
       // Pointer Lock guarantees mousemove with relative movementX/Y on document.
       // Do not also consume pointermove: some browsers emit both events.
-      if (this.locked && this.canLook()) this.emit(event.movementX,event.movementY);
+      if (!this.locked || !this.canLook()) return;
+      // Chromium can emit an oversized synthetic delta immediately after
+      // a Pointer Lock acquisition (cursor relocation, not a pilot turn).
+      // Inspect only the first locked event: preserve genuine small input.
+      if (this.checkLockWarp) {
+        this.checkLockWarp=false;
+        if (Math.abs(event.movementX)>24 || Math.abs(event.movementY)>24) return;
+      }
+      this.emit(event.movementX,event.movementY);
     };
     this.change = () => {
       const locked = this.locked, previous = this.wasLocked;
       this.wasLocked = locked;
+      this.checkLockWarp = locked && !previous;
       this.clearDrag();
       if (locked && !this.canLook()) {this.release();return;}
       if (locked !== previous) this.onCaptured(locked);
