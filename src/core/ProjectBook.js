@@ -61,15 +61,24 @@ export class ProjectBook {
     return true;
   }
 
-  async open(project) {
+  async open(project,{keepFocus=false}={}) {
     const wasOpen = !this.panel.hidden;
+    // Browsing from one exhibit to the next must not jump focus back to Close.
+    // The same header controls remain in DOM while content/camera changes.
+    const preserveFocus = keepFocus && wasOpen && this.panel.contains(document.activeElement);
     const current = wasOpen ? this.presentation() : {opacity:0, transform:'perspective(1500px) translateY(20px) rotateY(-3deg) scale(.985)'};
     this.cancel(); const revision = this.revision;
     this.project = project; this.page = 0; this.status = 'opening';
     this.panel.hidden = false; this.panel.inert = false;
     this.render();
-    this.panel.querySelector('#project-close').focus({preventScroll:true});
-    await this.animate(this.panel, [current, {opacity:1, transform:'none'}], this.duration);
+    if(!preserveFocus)this.panel.querySelector('#project-close').focus({preventScroll:true});
+    const opening = this.animate(this.panel, [current, {opacity:1, transform:'none'}], this.duration);
+    // A quiet content crossfade signals a new case study; it never replaces
+    // the existing book turn, interrupts mouse controls or blocks navigation.
+    const changing = preserveFocus ? this.animate(this.spread,
+      [{opacity:.38,transform:'translateY(5px)'},{opacity:1,transform:'none'}],
+      this.duration*.62) : Promise.resolve();
+    await Promise.all([opening,changing]);
     if (revision === this.revision && this.status === 'opening') this.status = 'open';
   }
 
