@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import {chromium} from '@playwright/test';
 import {createServer} from 'vite';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+const mouseAtOSLevel=promisify(execFile);
 
 // Actual browser input and production app telemetry. No direct writes to the
 // controller/camera: the user-facing start button, keyboard, and mouse are used.
@@ -51,9 +54,18 @@ try {
   assert.equal(before.paused,false);
   assert.ok((await page.evaluate(()=>starhaven.keys)).includes('KeyW'));
 
-  await page.mouse.move(800,430,{steps:1});
-  await page.mouse.move(920,455,{steps:4});
-  await page.mouse.move(1080,470,{steps:4});
+  if(process.env.NATIVE_X11_MOUSE==='1'){
+    // XTest relative OS input is delivered to the grabbed pointer without
+    // the CDP absolute-coordinate/warp-back pair seen in headless Chromium.
+    for(const [dx,dy] of [[80,-20],[90,0],[110,20]]){
+      await mouseAtOSLevel('xdotool',['mousemove_relative','--',String(dx),String(dy)]);
+      await page.waitForTimeout(90);
+    }
+  }else{
+    await page.mouse.move(800,430,{steps:1});
+    await page.mouse.move(920,455,{steps:4});
+    await page.mouse.move(1080,470,{steps:4});
+  }
   await page.waitForTimeout(100);
   const after=await flight();
   // Verify real relative movement, not a floating-point no-op in wrapped yaw.
@@ -94,7 +106,7 @@ try {
 
   assert.deepEqual(errors,[]);
   console.log(JSON.stringify({
-    result:'passed',lockedEvents,headings:{initial:initial.yaw,captured:captured.yaw,before:before.yaw,after:after.yaw,
+    result:'passed',inputMethod:process.env.NATIVE_X11_MOUSE==='1'?'X11 relative':'Playwright absolute',lockedEvents,headings:{initial:initial.yaw,captured:captured.yaw,before:before.yaw,after:after.yaw,
       held:held.yaw,released:released.yaw,rightDrag:fallback.yaw,leftDrag:left.yaw},
     capture:true,keyboardPreserved:true,errors,
   }));
