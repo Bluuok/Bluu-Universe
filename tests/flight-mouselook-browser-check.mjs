@@ -10,7 +10,7 @@ const errors=[];
 try {
   await server.listen();
   browser=await chromium.launch({
-    headless:true,
+    headless:process.env.PLAYWRIGHT_HEADED!=='1',
     args:['--enable-webgl','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'],
   });
   const page=await browser.newPage({viewport:{width:1440,height:960}});
