@@ -11,6 +11,7 @@ import {CollisionManifest} from './config/CollisionManifest.js';
 import {CameraDirector} from './core/CameraDirector.js';
 import {CameraAvoidance} from './core/CameraAvoidance.js';
 import {Interaction} from './core/Interaction.js';
+import {FlightLookInput} from './core/FlightLookInput.js';
 import {SpaceScene} from './scenes/SpaceScene.js';
 import {RoomScene} from './scenes/RoomScene.js';
 import {CharacterScene} from './scenes/CharacterScene.js';
@@ -38,14 +39,13 @@ function later(fn,ms){const t=setTimeout(()=>{timers.delete(t);fn();},ms);timers
 function toast(message){$('toast').textContent=message;$('toast').classList.add('show');clearTimeout(transitionTimer);transitionTimer=later(()=>$('toast').classList.remove('show'),2500);}
 function sound(freq=500){if(!soundEnabled)return;audioContext ||=new AudioContext();if(audioContext.state==='suspended')audioContext.resume();const oscillator=audioContext.createOscillator();const gain=audioContext.createGain();oscillator.type='sine';oscillator.frequency.setValueAtTime(freq,audioContext.currentTime);oscillator.frequency.exponentialRampToValueAtTime(freq*.65,audioContext.currentTime+.12);gain.gain.setValueAtTime(.045,audioContext.currentTime);gain.gain.exponentialRampToValueAtTime(.001,audioContext.currentTime+.16);oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start();oscillator.stop(audioContext.currentTime+.18);oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();};}
 let collision=null,flightPaused=false;
-function pauseFlight(value=true){flightPaused=value;controller.clear();if(value&&document.pointerLockElement)document.exitPointerLock();$('pause-flight').textContent=value?'继续飞行':'暂停';$('pause-flight').setAttribute('aria-pressed',String(value));}
+function pauseFlight(value=true){flightPaused=value;controller.clear();if(value)lookInput?.release();$('pause-flight').textContent=value?'继续飞行':'暂停';$('pause-flight').setAttribute('aria-pressed',String(value));}
 let projectContentStatus=null;
 const controller=new SpaceController({object:character.group,state,bounds:AssetManifest.space.bounds,flight:AssetManifest.space.flight,canMove:()=>ready&&director.transition===null&&!flightPaused&&$('catalog').hidden&&document.visibilityState!=='hidden'});
-function releaseFlightPointer(){controller.clear();}
+function releaseFlightPointer(){lookInput?.clearDrag();}
 async function requestFlightControl(){
  if(!ready||!state.moving||director.transition||!$('catalog').hidden)return;
- pauseFlight(false);$('world').focus({preventScroll:true});
- try{if(!$('world').requestPointerLock)throw new Error('unsupported');await $('world').requestPointerLock();}
+ try{await lookInput.request();}
  catch{toast('鼠标捕获不可用：按住右键拖动转向，WASD 移动。');}
 }
 $('world').tabIndex=0;
@@ -109,11 +109,11 @@ async function closeProject(){
  }
 }sound(400);return true;}
 function select(hit){if(hit.id==='robot')toast('星港小助手：作品都在暖光的工作室里，欢迎靠港。');else openProject(hit.id);}
-new Interaction({canvas:$('world'),camera,state,getObjects:()=>state.value===STATES.ROOM?room.hotspots:state.value===STATES.SPACE?(space.hotspots||[]):[],onSelect:select,onOrbit:(x,y)=>controller.lookDelta(x,y),onFlightStart:requestFlightControl,onLookStart:()=>{if(ready&&state.moving&&!director.transition&&$('catalog').hidden){if(flightPaused)pauseFlight(false);$('world').focus({preventScroll:true});}},onHover:(hit,e)=>{highlightExhibit(state.value===STATES.ROOM?hit?.id:null);if(state.moving&&controller.speed>.04)hit=null;const label=$('hotspot-label');label.hidden=!hit;if(hit){label.textContent=hit.id==='entrance'?'进入工作室':hit.id==='robot'?'和星港助手打个招呼':ProjectRegistry[hit.id]?.name||'查看作品';label.style.left=e.clientX+15+'px';label.style.top=e.clientY+12+'px';}}});
+const interaction=new Interaction({canvas:$('world'),camera,state,getObjects:()=>state.value===STATES.ROOM?room.hotspots:state.value===STATES.SPACE?(space.hotspots||[]):[],onSelect:select,onFlightStart:requestFlightControl,onHover:(hit,e)=>{highlightExhibit(state.value===STATES.ROOM?hit?.id:null);if(state.moving&&controller.speed>.04)hit=null;const label=$('hotspot-label');label.hidden=!hit;if(hit){label.textContent=hit.id==='entrance'?'进入工作室':hit.id==='robot'?'和星港助手打个招呼':ProjectRegistry[hit.id]?.name||'查看作品';label.style.left=e.clientX+15+'px';label.style.top=e.clientY+12+'px';}}});
 window.addEventListener('blur',releaseFlightPointer);
 document.addEventListener('pointerover',e=>{if(e.target.closest?.('button,a,aside,#project-panel')){releaseFlightPointer();$('hotspot-label').hidden=true;if(!e.target.closest('[data-exhibit]'))highlightExhibit(null);}});
 document.addEventListener('pointerdown',e=>{if(!$('catalog').hidden&&!e.target.closest?.('#catalog,#project-toggle'))setCatalog(false);});
-document.addEventListener('pointerdown',e=>{if(e.target.closest?.('button,a,aside,#project-panel'))releaseFlightPointer();},true);
+document.addEventListener('pointerdown',e=>{if(e.target.closest?.('button,a,aside,#project-panel')){releaseFlightPointer();controller.clear();}},true);
 window.addEventListener('blur',()=>pauseFlight(true));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseFlight(true);});
 $('pause-flight').onclick=()=>pauseFlight(!flightPaused);
@@ -179,18 +179,23 @@ state.onChange(refreshUI);$('exit').onclick=leaveRoom;$('project-close').onclick
 if(state.value==='DOCKING')state.set(STATES.TRANSITION);if(state.value==='ROOM')state.set(STATES.TRANSITION);state.set(STATES.SPACE);
 space.setVisible(true);room.setVisible(true);space.building.setDoorOpen?.(false);character.setVisible(true);character.group.position.fromArray(AssetManifest.character.position);passage.reset();pauseFlight(false);controller.resetHeading();space.exploration.resetRoute();director.yaw=0;director.pitch=.38;director.snapToSpace(character.group.position);refreshUI();toast('已回到入口附近。');};document.querySelector('.brand').onclick=e=>{e.preventDefault();if(state.value===STATES.PROJECT)closeProject();};window.addEventListener('keydown',e=>{if(e.code==='Escape'){if(document.pointerLockElement)document.exitPointerLock();if(!$('catalog').hidden){setCatalog(false);$(state.value===STATES.PROJECT?'project-close':'project-toggle').focus({preventScroll:true});}else if(state.value===STATES.PROJECT)closeProject();else pauseFlight(true);}});
 $('reset-view').addEventListener('click',()=>{projectRevision++;book.reset();projectFlightReturn=null;character.wake.clear();},true);
-$('look-mode').onclick=()=>{if(document.pointerLockElement===$('world'))document.exitPointerLock();else requestFlightControl();};
-let wasMouseCaptured=false;
-document.addEventListener('pointerlockchange',()=>{
- const locked=document.pointerLockElement===$('world');
- $('look-mode').textContent=locked?'Esc 释放鼠标':'开始操控';$('look-mode').setAttribute('aria-pressed',String(locked));controller.clear();
- if(locked){if(state.moving)pauseFlight(false);else document.exitPointerLock();}
- else if(wasMouseCaptured&&state.moving)pauseFlight(true);
- wasMouseCaptured=locked;
+// All mouse look movement and lock lifecycle now have exactly one owner.
+ // The scene/raycast input cannot steal RMB steering or clear flight velocity.
+const lookInput=new FlightLookInput({
+ canvas:$('world'),
+ canLook:()=>ready&&state.moving&&!director.transition&&$('catalog').hidden&&document.visibilityState!=='hidden',
+ onLook:(x,y)=>controller.lookDelta(x,y),
+ onStart:()=>{if(flightPaused)pauseFlight(false);$('world').focus({preventScroll:true});},
+ onCaptured:locked=>{
+  $('look-mode').textContent=locked?'Esc 释放鼠标':'开始操控';
+  $('look-mode').setAttribute('aria-pressed',String(locked));
+ },
+ onReleased:()=>{if(state.moving&&!flightPaused)pauseFlight(true);},
+ onError:()=>toast('鼠标捕获不可用：按住右键拖动转向，WASD 移动。'),
 });
-document.addEventListener('pointerlockerror',()=>toast('鼠标捕获不可用：按住右键拖动转向，WASD 移动。'));
-window.addEventListener('keydown',e=>{if(e.code==='Tab'&&document.pointerLockElement)document.exitPointerLock();});
-state.onChange(()=>{if(!state.moving&&document.pointerLockElement)document.exitPointerLock();});
+$('look-mode').onclick=()=>{if(lookInput.locked)lookInput.release();else requestFlightControl();};
+window.addEventListener('keydown',e=>{if(e.code==='Tab'&&lookInput.locked)lookInput.release();});
+state.onChange(()=>{if(!state.moving)lookInput.release();});
 function buildCatalog(){for(const [id,p] of Object.entries(ProjectRegistry)){const btn=document.createElement('button');btn.className='catalog-item';const name=document.createElement('span');name.textContent='↗';btn.append(document.createTextNode(p.name||p.title),name);const small=document.createElement('small');small.textContent=p.category||'项目';btn.append(small);btn.onclick=()=>openProject(id);$('catalog-items').append(btn);}}
 window.addEventListener('resize',()=>{director.setViewport(innerWidth,innerHeight);renderer.setSize(innerWidth,innerHeight);if(state.value===STATES.PROJECT){const h=(projectOrigin===STATES.ROOM?room.hotspots:space.hotspots).find(h=>h.id===selectedProject);if(h?.camera){const c=projectCamera(h,selectedProject);director.moveTo(c.position,c.target,uiDuration(.35));}}else if(state.value===STATES.ROOM&&director.mode!=='INSPECT'){const c=roomOverview();director.moveTo(c.position,c.target,uiDuration(.35));}});
 // Read-only observability and concrete navigation actions for local runtime verification.
@@ -218,7 +223,7 @@ window.starhaven.inspect={
   framePosition:({position,target,duration=.45})=>{if(!ready||state.locked)return false;controller.clear();director.setMode('INSPECT');director.moveTo(new THREE.Vector3(...position),new THREE.Vector3(...target),duration);return true;},
   setSpaceOrbit:({yaw=0,pitch=.38})=>{if(!ready||state.value!==STATES.SPACE)return false;controller.clear();director.yaw=yaw;director.pitch=pitch;controller.resetHeading(yaw);director.snapToSpace(character.group.position);return true;}
 };
-window.addEventListener('pagehide',event=>{if(!event.persisted){passage.dispose();controller.dispose();book.dispose();collision?.dispose();character.dispose();space.planet.dispose();space.rivers.dispose();space.exploration.dispose();space.disposeAmbient();}});
+window.addEventListener('pagehide',event=>{if(!event.persisted){lookInput.dispose();interaction.dispose();passage.dispose();controller.dispose();book.dispose();collision?.dispose();character.dispose();space.planet.dispose();space.rivers.dispose();space.exploration.dispose();space.disposeAmbient();}});
 
 async function init(){projectContentStatus=await loadProjectContent();await Promise.all([room.load(),character.load(),space.load?.()]);collision=new SpaceCollision(CollisionManifest,{anchors:{sapphirePlanet:space.planet.group,vortexCore:space.vortex.coreAnchor,robot:space.robot,nearAsteroid:space.nearAsteroid,sideAsteroid:space.asteroids[1],rearAsteroid:space.asteroids[2],satelliteThreadcove:space.satellites.threadcove,satelliteClawtide:space.satellites.clawtide},doorOpen:()=>Boolean(space.building.doorTargetAngle)});controller.collision=collision;director.avoidance=new CameraAvoidance(()=>[...collision.cameraMeshes(),...space.paintFlow.getCameraMeshes()]);buildCatalog();buildLabels();character.setPresence(1);room.setVisible(true);director.snapToSpace(character.group.position);
   // Interior cutaway removes the exterior door light, giving Standard
