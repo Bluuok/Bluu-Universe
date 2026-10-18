@@ -43,9 +43,8 @@ try {
   assert.equal(held.yaw,after.yaw,'no delayed camera yaw/heading tail when the mouse stops');
   await page.keyboard.up('w');
 
-  // Exit mouse capture with the visible control; Escape is a separate native
-  // browser gesture and can be blocked in some headless environments.
-  await page.evaluate(()=>document.exitPointerLock());
+  // Native Escape releases capture and pauses flight through the public UI.
+  await page.keyboard.press('Escape');
   await page.waitForFunction(()=>document.pointerLockElement===null,{timeout:5000});
   const released=await flight();
   assert.equal(released.mouseCaptured,false);
