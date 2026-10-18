@@ -131,3 +131,86 @@ body.project-reading .brand,body.project-reading nav{opacity:.65}
 @media(max-width:1100px){#controls{flex-wrap:wrap;gap:8px 14px}#location,#entry{bottom:170px}#flight-guide{bottom:210px}}
 
 @media(max-width:1100px),(max-height:700px){header{inset:12px 4% auto}.brand{font-size:15px}.brand-star{font-size:24px;line-height:1}.brand small{display:none}}
+
+/* PR2 / editorial project wayfinding: restrained material, clear hierarchy. */
+#catalog{
+  width:min(480px,calc(100vw - 24px));max-height:calc(100dvh - 112px);
+  top:84px;overflow-y:auto;overscroll-behavior:contain;
+  padding:23px 23px 20px;border-radius:20px;
+  border-color:rgba(226,222,206,.2);
+  background:linear-gradient(165deg,rgba(21,43,55,.97),rgba(9,26,42,.96));
+  box-shadow:0 32px 85px #020f1baa,0 1px 0 #f8e6c516 inset;
+}
+.catalog-title{align-items:center;margin-bottom:16px;color:#f6ead5;font-size:12px}
+.catalog-item,.catalog-item:hover,.catalog-item:focus-visible{box-shadow:none}
+.catalog-item{
+  display:grid;grid-template-columns:22px 88px minmax(0,1fr) 18px;
+  gap:12px;align-items:center;width:100%;margin:0;
+  padding:13px 4px;text-align:left;border-radius:12px;
+  border-bottom:1px solid #d9ddce20;background:transparent;
+  transition:background 180ms ease,transform 180ms ease;
+}
+.catalog-item span{float:none}
+.catalog-item-index{align-self:start;padding-top:6px;font-size:10px;font-variant-numeric:tabular-nums;color:#d0b988a8}
+.catalog-item-preview{
+  display:grid;place-items:center;position:relative;width:88px;aspect-ratio:4/3;
+  overflow:hidden;border:1px solid #f0daae24;border-radius:9px;
+  background:linear-gradient(135deg,#1a4860,#37526a 48%,#95774f);
+}
+.catalog-item-preview img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.93}
+.catalog-item-monogram{font-size:30px;color:#eee1b8;opacity:.65}
+.catalog-item-preview img+.catalog-item-monogram{display:none}
+.catalog-item-copy{display:flex;flex-direction:column;min-width:0;gap:5px}
+.catalog-item-copy small{margin:0;font-size:9px;letter-spacing:.045em;color:#b7c9cd}
+.catalog-item-copy strong{display:block;font-size:16px;font-weight:530;line-height:1.3;color:#f6ede1;overflow-wrap:anywhere}
+.catalog-item-summary{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-size:10px;line-height:1.6;color:#a9bbc5}
+.catalog-item-arrow{align-self:start;padding-top:5px;font-size:16px;color:#d9bf8a;transition:transform 180ms ease}
+.catalog-item:hover,.catalog-item:focus-visible{background:#e5efe713}
+.catalog-item:hover .catalog-item-arrow,.catalog-item:focus-visible .catalog-item-arrow{transform:translate(2px,-2px)}
+#catalog>p{margin:16px 4px 0;font-size:10px;color:#aebec6}
+
+#project-panel{border-radius:12px 17px 17px 12px;box-shadow:0 24px 80px #0008,0 2px 0 #6b583c,0 5px 0 #10242d}
+.book-heading{display:grid;grid-template-columns:minmax(0,1fr) auto 32px;gap:16px;padding:12px 21px;min-height:54px}
+.book-heading-brand{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.project-siblings{display:flex;align-items:center;gap:6px;color:#e4d3b5}
+.project-siblings button{width:32px;height:32px;background:#f3e7c50c;color:#f3e7ca;border:1px solid #f0dcac29;border-radius:9px;font-size:15px;line-height:1}
+.project-siblings button:hover:not(:disabled){background:#ecd29e29;border-color:#dfc58b77}
+.project-siblings button:active:not(:disabled){transform:scale(.96)}
+.project-siblings button:disabled{opacity:.3;cursor:default}
+#project-position{display:inline-block;min-width:52px;text-align:center;font:10px/1.3 "Noto Sans SC",sans-serif;letter-spacing:.08em;font-variant-numeric:tabular-nums}
+#project-close{margin:0;padding:0;align-self:center}
+@media(max-width:700px){
+  #catalog{right:12px;top:72px;max-height:calc(100dvh - 94px);padding:17px}
+  .catalog-item{grid-template-columns:16px 72px minmax(0,1fr) 12px;gap:9px;padding:11px 2px}
+  .catalog-item-preview{width:72px}
+  .catalog-item-copy strong{font-size:14px}
+  #project-panel{
+    position:absolute;inset:87px 12px 12px;
+    width:auto;max-width:none;min-height:0;border-radius:13px;
+  }
+  .book-heading{grid-template-columns:1fr auto 32px;gap:8px;padding:9px 12px;min-height:48px}
+  .book-heading-brand{font-size:0}
+  .book-heading-brand::before{content:'作品手记';font-size:10px}
+  .project-siblings{gap:2px}
+  .project-siblings button{width:30px;height:30px}
+  #project-position{min-width:46px;font-size:9px}
+  .book-tabs{right:10px;top:-27px;gap:3px}
+  .book-tabs button{padding:6px 12px 7px}
+  .book-spread{display:block;overflow:auto;overscroll-behavior:contain;margin:0 5px}
+  .book-spread::after{display:none}
+  .book-page{overflow:visible;padding:20px 18px 22px}
+  .book-right{border-top:1px solid #bea98766;min-height:140px}
+  .book-section-label{margin-bottom:12px;padding-bottom:8px}
+  #book-section{margin-bottom:12px}
+  #project-details p{margin-bottom:10px;padding-bottom:10px;line-height:1.8}
+  .book-page figure{margin:16px 0 12px}
+  .book-media{max-height:none}
+  .book-turn{visibility:hidden}
+  .book-navigation{min-height:56px;padding:9px 13px}
+  #project-back{font-size:9px;white-space:normal}
+  #book-prev,#book-next{width:30px;height:30px}
+}
+@media(prefers-reduced-motion:reduce){
+  .catalog-item,.catalog-item-arrow,.project-siblings button{transition:none}
+  .catalog-item:hover .catalog-item-arrow,.catalog-item:focus-visible .catalog-item-arrow{transform:none}
+}
