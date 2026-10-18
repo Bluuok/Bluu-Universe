@@ -14,6 +14,13 @@ try {
     args:['--enable-webgl','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'],
   });
   const page=await browser.newPage({viewport:{width:1440,height:960}});
+  await page.addInitScript(()=>{
+    window.__lockedMouseEvents=[];
+    document.addEventListener('mousemove',event=>{
+      if(document.pointerLockElement?.id==='world')
+        window.__lockedMouseEvents.push([event.movementX,event.movementY]);
+    },true);
+  });
   page.on('pageerror',error=>errors.push(error.message));
   page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
   await page.goto('http://127.0.0.1:4589/',{waitUntil:'domcontentloaded'});
@@ -25,6 +32,11 @@ try {
 
   await page.locator('#look-mode').click();
   await page.waitForFunction(()=>document.pointerLockElement?.id==='world',null,{timeout:15000});
+  await page.waitForTimeout(150);
+  const captured=await flight();
+  assert.ok(Math.abs(Math.atan2(Math.sin(captured.yaw-initial.yaw),
+    Math.cos(captured.yaw-initial.yaw)))<.03,
+    `lock acquisition must not spin the camera: initial=${initial.yaw}, captured=${captured.yaw}`);
   await page.keyboard.down('w');
   await page.waitForTimeout(300);
   const before=await flight();
@@ -33,11 +45,16 @@ try {
   assert.ok((await page.evaluate(()=>starhaven.keys)).includes('KeyW'));
 
   await page.mouse.move(800,430,{steps:1});
+  await page.mouse.move(920,455,{steps:4});
+  await page.mouse.move(1080,470,{steps:4});
   await page.waitForTimeout(100);
   const after=await flight();
-  // A trusted browser mousemove cannot alter pressed keys.
+  // Verify real relative movement, not a floating-point no-op in wrapped yaw.
+  const lockedEvents=await page.evaluate(()=>window.__lockedMouseEvents);
+  const yawChange=Math.atan2(Math.sin(after.yaw-before.yaw),Math.cos(after.yaw-before.yaw));
   assert.ok((await page.evaluate(()=>starhaven.keys)).includes('KeyW'));
-  assert.notEqual(after.yaw,before.yaw,'relative mouse must steer while W is held');
+  assert.ok(Math.abs(yawChange)>.10,
+    `actual captured mouse turn required; delta=${yawChange}, events=${JSON.stringify(lockedEvents)}`);
   await page.waitForTimeout(250);
   const held=await flight();
   assert.equal(held.yaw,after.yaw,'no delayed camera yaw/heading tail when the mouse stops');
@@ -70,7 +87,7 @@ try {
 
   assert.deepEqual(errors,[]);
   console.log(JSON.stringify({
-    result:'passed',headings:{initial:initial.yaw,before:before.yaw,after:after.yaw,
+    result:'passed',lockedEvents,headings:{initial:initial.yaw,captured:captured.yaw,before:before.yaw,after:after.yaw,
       held:held.yaw,released:released.yaw,rightDrag:fallback.yaw,leftDrag:left.yaw},
     capture:true,keyboardPreserved:true,errors,
   }));
