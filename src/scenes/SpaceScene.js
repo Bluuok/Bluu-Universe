@@ -273,6 +273,7 @@ export class SpaceScene {
     const skyIntensity = this.backdrop.config.panorama.intensity * (1 - .48 * this.interiorBlend);
     this.backdrop.environment.material.uniforms.intensity.value = skyIntensity;
     this.backdrop.brushwork.material.uniforms.intensity.value = skyIntensity;
+    if (this.backdrop.parallax) this.backdrop.parallax.material.uniforms.intensity.value = skyIntensity;
     this.vortex.setPlayerFocus(playerFocus);
     this.rivers.setPlayerFocus(playerFocus);
     this.planet.update(dt);
