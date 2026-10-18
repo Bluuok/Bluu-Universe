@@ -17,6 +17,11 @@ on:
 permissions:
   contents: read
 
+# Browser rendering is GPU/CPU intensive; keep only the newest PR revision.
+concurrency:
+  group: game-mouselook-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   controller:
     runs-on: ubuntu-latest
