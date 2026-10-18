@@ -39,5 +39,7 @@ jobs:
         run: npm run build
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+      - name: Install relative X11 pointer driver
+        run: sudo apt-get install -y xdotool
       - name: Real Chromium pointer-lock and RMB playthrough
-        run: xvfb-run -a env PLAYWRIGHT_HEADED=1 node tests/flight-mouselook-browser-check.mjs
+        run: xvfb-run -a env PLAYWRIGHT_HEADED=1 NATIVE_X11_MOUSE=1 node tests/flight-mouselook-browser-check.mjs
