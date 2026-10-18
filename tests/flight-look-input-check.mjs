@@ -89,6 +89,8 @@ try {
   assert.equal(control.keys.has('KeyW'),true);
   assert.deepEqual(control.velocity.toArray(),[4,1,3]);
   const before=control.yaw;
+  emit(doc,'mousemove',{movementX:1267,movementY:-500});
+  approx(control.yaw,before,'synthetic lock-entry warp must not steer');
   emit(canvas,'pointermove',{pointerId:3,movementX:90,movementY:0});
   approx(control.yaw,before);
   emit(doc,'mousemove',{movementX:90,movementY:0});
