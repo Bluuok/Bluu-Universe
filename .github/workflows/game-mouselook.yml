@@ -1,0 +1,38 @@
+name: Game mouse-look regression
+
+on:
+  pull_request:
+    paths:
+      - 'src/core/FlightLookInput.js'
+      - 'src/core/Interaction.js'
+      - 'src/core/SpaceController.js'
+      - 'src/core/CameraDirector.js'
+      - 'src/main.js'
+      - 'tests/flight-look-input-check.mjs'
+      - 'tests/flight-mouselook-browser-check.mjs'
+      - 'package*.json'
+      - '.github/workflows/game-mouselook.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  controller:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Input ownership and movement invariants
+        run: node tests/flight-look-input-check.mjs
+      - name: Production bundle
+        run: npm run build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Real Chromium pointer-lock and RMB playthrough
+        run: node tests/flight-mouselook-browser-check.mjs
