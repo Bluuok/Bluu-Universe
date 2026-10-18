@@ -30,7 +30,14 @@ try {
   const initial=await flight();
   assert.equal(initial.mouseCaptured,false);
 
-  await page.locator('#look-mode').click();
+  // A heavy WebGL frame can prevent Playwright's locator "stable" check
+  // from settling in headless software GL. CDP mouse.click is still a real
+  // browser gesture, without a synthetic DOM click or application method call.
+  const control=await page.evaluate(()=>{
+    const box=document.getElementById('look-mode').getBoundingClientRect();
+    return {x:box.x+box.width/2,y:box.y+box.height/2};
+  });
+  await page.mouse.click(control.x,control.y);
   await page.waitForFunction(()=>document.pointerLockElement?.id==='world',null,{timeout:15000});
   await page.waitForTimeout(150);
   const captured=await flight();
