@@ -6,6 +6,7 @@ import {
   starVertex, starFragment,
 } from './sky/SkyShaders.js';
 import {createPaintedSkyStrokes} from './sky/PaintedSkyStrokes.js';
+import {createPainterlyParallax, DEFAULT_PARALLAX} from './sky/PainterlyParallax.js';
 
 /** One fixed, shared world sky. No camera, renderer or second animation loop.
  * The old localized six painting cards are retired. A newly generated seamless
@@ -29,6 +30,7 @@ const DEFAULTS = {
   stars: { distant: 2600, nearby: 130, clusters: 480 },
   brushes: { coarse: 14000, fine: 180000, radius: 550, seed: 3203,
     coarseSize: [13, 28, 3, 7], fineSize: [3, 9, .8, 2.6] },
+  parallax: DEFAULT_PARALLAX,
   bands: [
     { id: 'azure-river', color: '#82b7d0', count: 6800, width: 8.5, depth: 7,
       points: [[-105,-12,-130],[-60,36,-98],[-8,62,-76],[65,43,-94],[126,14,-38],[92,-28,45],[20,-47,98]] },
@@ -88,6 +90,7 @@ export class StarfieldBackdrop {
       pigment: { ...DEFAULTS.pigment, ...manifest.pigment },
       dust: { ...DEFAULTS.dust, ...manifest.dust },
       brushes: { ...DEFAULTS.brushes, ...manifest.brushes },
+      parallax: { ...DEFAULTS.parallax, ...manifest.parallax },
       stars: typeof manifest.stars === 'object' ? { ...DEFAULTS.stars, ...manifest.stars } : DEFAULTS.stars,
       bands: manifest.bands || DEFAULTS.bands, starClusters: manifest.starClusters || DEFAULTS.starClusters };
     this.group = new THREE.Group(); this.group.name = 'SharedThreeDimensionalStarSea';
@@ -98,6 +101,11 @@ export class StarfieldBackdrop {
     this.makeEnvironment();
     this.brushwork = createPaintedSkyStrokes(this.config.brushes, this.config.panorama);
     this.brushwork.position.set(...this.config.center); this.group.add(this.brushwork);
+    // Independent depth shells share the same panorama and world centre.
+    // They stay behind the reachable clouds, building and astronaut.
+    this.parallax = this.config.parallax.enabled
+      ? createPainterlyParallax(this.config.parallax, this.config.panorama) : null;
+    if (this.parallax) { this.parallax.position.set(...this.config.center); this.group.add(this.parallax); }
     const configuredDust = this.config.bands.reduce((sum, band) => sum + band.count, 0);
     for (const band of this.config.bands) this.makeDustVolume({ ...band,
       count: Math.max(1, Math.round(band.count * this.config.dust.count / configuredDust)) });
@@ -259,6 +267,7 @@ export class StarfieldBackdrop {
     if (layerId === 'panorama' || layerId === 'paint') {
       this.environment.material.uniforms.panorama.value = texture; this.environment.visible = true;
       this.brushwork.material.uniforms.panorama.value = texture; this.brushwork.visible = true;
+      if (this.parallax) { this.parallax.material.uniforms.panorama.value = texture; this.parallax.visible = true; }
       return this.environment;
     }
     if (layerId === 'pigment') {
@@ -304,6 +313,10 @@ export class StarfieldBackdrop {
       nativeBrushwork: { type: 'InstancedBufferGeometry', count: this.brushwork.geometry.instanceCount,
         radius: this.config.brushes.radius, position: this.brushwork.position.toArray(), worldFixed: true,
         depthTest: this.brushwork.material.depthTest, collidable: false, sourceDetailRecovered: false },
+      parallaxBrushwork: this.parallax ? {count: this.parallax.geometry.instanceCount,
+        shellRadii: this.parallax.userData.radii, shellCounts: this.parallax.userData.layerCounts,
+        worldFixed: true, cameraAttached: false, collidable: false, drawCalls: 1,
+        textureOwned: false, depthTest: true, depthWrite: false} : {enabled: false},
       volumes: this.dustVolumes.map(item => ({ ...describe(item), crossSection: [item.width, item.depth],
         curve: 'CatmullRomCurve3', controlPoints: item.controlPoints })),
       stars: this.starFields.map(describe), totalDust: this.dustVolumes.reduce((sum, item) => sum + item.count, 0),
