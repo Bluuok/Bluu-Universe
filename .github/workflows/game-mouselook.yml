@@ -40,4 +40,4 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Real Chromium pointer-lock and RMB playthrough
-        run: node tests/flight-mouselook-browser-check.mjs
+        run: xvfb-run -a env PLAYWRIGHT_HEADED=1 node tests/flight-mouselook-browser-check.mjs
