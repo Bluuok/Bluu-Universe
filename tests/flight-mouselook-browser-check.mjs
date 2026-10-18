@@ -17,14 +17,14 @@ try {
   page.on('pageerror',error=>errors.push(error.message));
   page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
   await page.goto('http://127.0.0.1:4589/',{waitUntil:'domcontentloaded'});
-  await page.waitForFunction(()=>window.starhaven?.ready,{timeout:120000});
+  await page.waitForFunction(()=>window.starhaven?.ready,null,{timeout:120000});
   await page.locator('#loading').waitFor({state:'hidden',timeout:15000});
   const flight=()=>page.evaluate(()=>starhaven.flight);
   const initial=await flight();
   assert.equal(initial.mouseCaptured,false);
 
   await page.locator('#look-mode').click();
-  await page.waitForFunction(()=>document.pointerLockElement?.id==='world',{timeout:15000});
+  await page.waitForFunction(()=>document.pointerLockElement?.id==='world',null,{timeout:15000});
   await page.keyboard.down('w');
   await page.waitForTimeout(300);
   const before=await flight();
@@ -45,7 +45,7 @@ try {
 
   // Native Escape releases capture and pauses flight through the public UI.
   await page.keyboard.press('Escape');
-  await page.waitForFunction(()=>document.pointerLockElement===null,{timeout:5000});
+  await page.waitForFunction(()=>document.pointerLockElement===null,null,{timeout:5000});
   const released=await flight();
   assert.equal(released.mouseCaptured,false);
   assert.equal(released.paused,true);
