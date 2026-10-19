@@ -273,6 +273,7 @@ export class SpaceScene {
     const skyIntensity = this.backdrop.config.panorama.intensity * (1 - .48 * this.interiorBlend);
     this.backdrop.environment.material.uniforms.intensity.value = skyIntensity;
     this.backdrop.brushwork.material.uniforms.intensity.value = skyIntensity;
+    if (this.backdrop.parallax) this.backdrop.parallax.material.uniforms.intensity.value = skyIntensity;
     this.vortex.setPlayerFocus(playerFocus);
     this.rivers.setPlayerFocus(playerFocus);
     this.planet.update(dt);
@@ -283,7 +284,7 @@ export class SpaceScene {
     if (this.robotEyes) this.robotEyes.emissiveIntensity = 1.65 + Math.sin(t * 2.0) * 0.16;
   }
 
-  updateAmbient(dt,camera,options){this.flybys?.update(dt,camera,options);this.wordField?.update(dt,camera,options);this.paintFlow?.update(dt,options);}
+  updateAmbient(dt,camera,options){this.backdrop.prepareForCamera(camera);this.flybys?.update(dt,camera,options);this.wordField?.update(dt,camera,options);this.paintFlow?.update(dt,options);}
   disposeAmbient(){this.flybys?.dispose();this.wordField?.dispose();this.paintFlow?.dispose();}
 
   setInteriorProgress(progress) {

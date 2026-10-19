@@ -14,6 +14,8 @@ export const AssetManifest = {
     wordField:WordFieldManifest,
     panorama:{url:'/assets/sky/world/blue-gold-panorama-v07-6k.png',intensity:.32,longitude:.16},
     brushes:{coarse:14000,fine:180000,radius:ExplorationTuning.skyRadius,seed:3203,coarseSize:[22,48,5,12].map(v=>v*ExplorationTuning.skyRadius/950),fineSize:[5,15,1.4,4.5].map(v=>v*ExplorationTuning.skyRadius/950)},
+    // Same authored sky texture, with three 2.5D instanced depth layers.
+    parallax:{enabled:true,count:3600,seed:4417,radii:[245,345,455],weights:[.22,.35,.43],opacity:.50},
     pigment:{url:'/assets/sky/candidates/layer-夜空.png'},
     dust:{count:24750,strength:1},
     spiralCluster:{enabled:true,index:0,seed:'starhaven-gold-arm',normal:[.48,-.26,.84],arms:2,twist:1.5,armSpread:.12},

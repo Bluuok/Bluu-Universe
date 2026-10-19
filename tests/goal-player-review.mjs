@@ -57,7 +57,11 @@ try{
     await shot('normal-spawn');
     if(id===1){
       await go([-15,12,-15],'west-clear');
-      for(const [p,n] of [[[-119,-28,-82],'near-curl-front'],[[-112,-22,-111],'near-curl-middle'],[[-105,-16,-139],'near-curl-back'],[[-7,-38,-155],'far-curl-front'],[[-25,-30,-178],'far-curl-middle'],[[-43,-22,-200],'far-curl-back'],[[-65,12,-95],'physical-return-clear'],[[-15,12,-15],'physical-return-studio'],[[-10,5,10],'front-exterior']])await go(p,n);
+      const shellRoute=process.env.GOAL_PARALLAX_ROUTE==='1'?[
+        [[-65,180,-205],'parallax-shell-245-outside'],[[-280,180,-205],'parallax-shell-345-outside'],
+        [[-490,180,-205],'parallax-shell-455-outside'],[[-280,180,-205],'parallax-return-mid'],[[-65,180,-205],'parallax-return-near'],
+      ]:[];
+      for(const [p,n] of [[[-119,-28,-82],'near-curl-front'],[[-112,-22,-111],'near-curl-middle'],[[-105,-16,-139],'near-curl-back'],[[-7,-38,-155],'far-curl-front'],[[-25,-30,-178],'far-curl-middle'],[[-43,-22,-200],'far-curl-back'],...shellRoute,[[-65,12,-95],'physical-return-clear'],[[-15,12,-15],'physical-return-studio'],[[-10,5,10],'front-exterior']])await go(p,n);
       await room(['threadcove']);
     }else if(id===2){
       await go([-10,8,10],'rise-clear');await go([-9,3,0],'west-wall-approach');await face(-Math.PI/2);await contact('w',[-1,0,0],'left-wall-body-contact');

@@ -1,0 +1,29 @@
+name: Frontend sky smoke checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'tests/painterly-parallax-check.mjs'
+      - 'package*.json'
+      - '.github/workflows/frontend-sky-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sky-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node tests/painterly-parallax-check.mjs
+      - run: npm run build
