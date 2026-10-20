@@ -56,6 +56,16 @@ export function blendPaintStrokes(sources,{material,curve,normal,geometry:layout
   if(mesher.count/3>=26000){mesher.geometry.dispose();throw new Error('Near paint blend exceeds mesher buffer');}
   const positions=new Float32Array(mesher.count*3);
   for(let i=0;i<mesher.count;i++){p.fromArray(mesher.positionArray,i*3).addScalar(1).multiply(size).multiplyScalar(.5).add(bounds.min);positions.set(p.toArray(),i*3);}
+  // Reuse the mesher's field gradients instead of lighting its irregular
+  // triangles as broad facets. The grid is scaled differently on each axis:
+  // normals need inverse scale before normalization, unlike positions.
+  const fieldNormals=new Map(),gradient=new THREE.Vector3();
+  for(let i=0;i<mesher.count;i++){
+    p.fromArray(positions,i*3);const key=p.toArray().join(',');
+    gradient.fromArray(mesher.normalArray,i*3).divide(size);
+    if(!fieldNormals.has(key))fieldNormals.set(key,new THREE.Vector3());
+    fieldNormals.get(key).add(gradient);
+  }
   const raw=new THREE.BufferGeometry();raw.setAttribute('position',new THREE.BufferAttribute(positions,3));
   const welded=mergeVertices(raw,.0001);raw.dispose();
   const kept=[],used=new Map(),compact=[],a=new THREE.Vector3(),b=new THREE.Vector3(),c=new THREE.Vector3();
@@ -109,6 +119,35 @@ export function blendPaintStrokes(sources,{material,curve,normal,geometry:layout
   const pigmentAfter={mass:pigments.reduce((a,b)=>a+b,0),edgeContrast:contrast(),min:Math.min(...pigments),max:Math.max(...pigments)};
   for(let i=0;i<count;i++){colour.fromArray(colors,i*3).lerp(gold,pigments[i]*paint.strength);colors.set(colour.toArray(),i*3);if(pigments[i]>.2)goldVertices++;}
   for(const [name,array,itemSize]of [['uv',uvs,2],['color',colors,3],['flowAxis',axes,3],['flowMotion',motions,2]])geometry.setAttribute(name,new THREE.BufferAttribute(array,itemSize));
+  // Keep the authored pigment/UVs and welded topology above byte-identical;
+  // only replace shading normals after the existing colour calculation.
+  const normals=new Float32Array(count*3);
+  for(let i=0;i<count;i++){
+    p.fromBufferAttribute(geometry.attributes.position,i);
+    const fieldNormal=fieldNormals.get(p.toArray().join(','));
+    if(fieldNormal?.lengthSq()>1e-16)gradient.copy(fieldNormal).normalize();
+    else gradient.fromBufferAttribute(geometry.attributes.normal,i);
+    normals.set(gradient.toArray(),i*3);
+  }
+  // Coarse cells at sharp concave folds can disagree with a field gradient.
+  // Preserve the original shading there, without changing any triangle or
+  // spreading an inward normal to adjacent faces. Each pass restores new
+  // vertices, so this terminates even for a chain of neighbouring folds.
+  const originalNormals=geometry.attributes.normal,restored=new Set(),faceNormal=new THREE.Vector3(),smoothAverage=new THREE.Vector3(),originalAverage=new THREE.Vector3();
+  let repaired=true;
+  while(repaired){
+    repaired=false;
+    for(let i=0;i<index.count;i+=3){
+      const ids=[index.getX(i),index.getX(i+1),index.getX(i+2)];
+      a.fromBufferAttribute(geometry.attributes.position,ids[0]);b.fromBufferAttribute(geometry.attributes.position,ids[1]);c.fromBufferAttribute(geometry.attributes.position,ids[2]);
+      faceNormal.crossVectors(b.sub(a),c.sub(a));smoothAverage.set(0,0,0);originalAverage.set(0,0,0);
+      for(const id of ids){smoothAverage.add(gradient.fromArray(normals,id*3));originalAverage.add(gradient.fromBufferAttribute(originalNormals,id));}
+      if(faceNormal.dot(smoothAverage)<=0&&faceNormal.dot(originalAverage)>0){
+        for(const id of ids)if(!restored.has(id)){gradient.fromBufferAttribute(originalNormals,id);normals.set(gradient.toArray(),id*3);restored.add(id);repaired=true;}
+      }
+    }
+  }
+  geometry.setAttribute('normal',new THREE.BufferAttribute(normals,3));
   geometry.computeBoundingBox();geometry.computeBoundingSphere();mesher.geometry.dispose();
   return {geometry,telemetry:{sourceStrokes:sources.length,sourceGoldMarks:goldPaths.length,renderedParts:1,renderedVertices:count,ellipsoids:ellipsoids.length,profile:{...profile},pigment:{...paint,before:pigmentBefore,after:pigmentAfter},resolution,triangles:geometry.index.count/3,rawTriangles:mesher.count/3,collapsedTriangles:(mesher.count-geometry.index.count)/3,goldVertices,newTextures:0,temporaryCPUGridBytes:resolution**3*28}};
 }
