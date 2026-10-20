@@ -1,3 +1,3 @@
-import {chromium} from '@playwright/test';
+import {chromium} from './browser-runtime.mjs';
 const b=await chromium.launch({headless:true,executablePath:'C:/Users/ertstyuqk/AppData/Local/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-win64/chrome-headless-shell.exe',args:['--use-angle=d3d11','--enable-gpu','--disable-software-rasterizer']});
 try {const p=await b.newPage();await p.goto('http://127.0.0.1:4175');await p.waitForTimeout(1500);console.log(await p.evaluate(()=>{const c=document.getElementById('world'),g=c.getContext('webgl2'),e=g?.getExtension('WEBGL_debug_renderer_info');return {renderer:e?g.getParameter(e.UNMASKED_RENDERER_WEBGL):null,ready:window.starhaven?.ready};}));}finally{await b.close();}

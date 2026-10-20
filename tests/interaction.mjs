@@ -1,5 +1,5 @@
 // Historical pre-v0.2 baseline suite. The current npm entry runs v02-edge-review.mjs; old artificial starts/long-distance entry assumptions are not final-version evidence.
-import { chromium } from '@playwright/test';
+import { chromium } from './browser-runtime.mjs';
 import { mkdir, writeFile, readFile, unlink } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 

@@ -1,4 +1,4 @@
-import {chromium} from '@playwright/test';
+import {chromium} from './browser-runtime.mjs';
 import * as THREE from 'three';
 import {writeFile} from 'node:fs/promises';
 const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',args:['--use-angle=d3d11']});

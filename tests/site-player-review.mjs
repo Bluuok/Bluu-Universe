@@ -1,5 +1,5 @@
 import {runtimeBuildIdentity} from './runtime-build-identity.mjs';
-import {chromium} from '@playwright/test';
+import {chromium} from './browser-runtime.mjs';
 import {flyTo,flyIntoRoom,faceHeading} from './room-flight-route.mjs';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';import {createHash} from 'node:crypto';import assert from 'node:assert/strict';
 // Default: normal browser sign-in. An explicitly authorized QA token may arrive

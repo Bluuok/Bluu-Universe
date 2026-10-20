@@ -3,7 +3,7 @@ import {mkdir,readFile,writeFile,rename,unlink} from 'node:fs/promises';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {build} from 'esbuild';
-import {chromium} from '@playwright/test';
+import {chromium} from './browser-runtime.mjs';
 import {createHash} from 'node:crypto';
 
 // Test ownership only. No renderer/source changes; no browser starts without

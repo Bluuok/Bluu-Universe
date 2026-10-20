@@ -1,4 +1,4 @@
-import {chromium} from '@playwright/test';
+import {chromium} from './browser-runtime.mjs';
 import {runtimeBuildIdentity} from './runtime-build-identity.mjs';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';

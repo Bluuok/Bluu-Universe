@@ -1,4 +1,4 @@
-import {chromium} from '@playwright/test';
+import {chromium} from './browser-runtime.mjs';
 import {readFile,mkdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';

@@ -1,5 +1,5 @@
 import {build} from 'vite';
-import {chromium} from '@playwright/test';
+import {chromium} from './browser-runtime.mjs';
 import {createServer} from 'node:http';
 import {readFile,mkdir,writeFile,stat} from 'node:fs/promises';
 import {createReadStream} from 'node:fs';

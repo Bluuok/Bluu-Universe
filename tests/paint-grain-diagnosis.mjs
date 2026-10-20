@@ -1,4 +1,4 @@
-import {chromium} from '@playwright/test';
+import {chromium} from './browser-runtime.mjs';
 import {flyTo,faceHeading} from './room-flight-route.mjs';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';

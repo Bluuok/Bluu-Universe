@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {chromium} from '@playwright/test';
+import {chromium} from './browser-runtime.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 const versions=JSON.parse(process.env.WORD_VISUAL_VERSIONS||'[{"id":"rc50","url":"http://127.0.0.1:4249/"}]');

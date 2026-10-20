@@ -1,4 +1,4 @@
-import assert from'node:assert/strict';import{chromium}from'@playwright/test';import{mkdir,writeFile}from'node:fs/promises';import{createHash}from'node:crypto';
+import assert from'node:assert/strict';import{chromium}from'./browser-runtime.mjs';import{mkdir,writeFile}from'node:fs/promises';import{createHash}from'node:crypto';
 const out=process.env.POINTER_OUT||'screenshots/v12-rc55-pointer-target';await mkdir(out,{recursive:true});const report={at:new Date().toISOString(),method:'Installed headless Chrome / D3D11; real Playwright mouse/keyboard, production telemetry read-only. No OS-focus or subjective motion-comfort claim.',sessions:[]};
 const angle=(a,b)=>Math.atan2(Math.sin(a-b),Math.cos(a-b));
 try{for(const version of (process.env.POINTER_ONLY_NEW==='1'?[{id:'new',url:process.env.POINTER_URL||'http://127.0.0.1:4255/'}]:[{id:'old',url:'http://127.0.0.1:4254/'},{id:'new',url:'http://127.0.0.1:4253/'}])){

@@ -11,6 +11,13 @@ on:
       - 'src/style.css'
       - 'index.html'
       - 'tests/portfolio-navigation-check.mjs'
+      - 'tests/browser-runtime.mjs'
+      - 'tests/browser-safety-check.mjs'
+      - 'tests/studio-contact-geometry.mjs'
+      - 'src/core/SpaceCollision.js'
+      - 'src/core/CameraAvoidance.js'
+      - 'src/config/BuildingLayout.js'
+      - 'src/config/CollisionManifest.js'
       - 'package*.json'
       - '.github/workflows/portfolio-ui-smoke.yml'
   workflow_dispatch:
@@ -30,4 +37,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node tests/portfolio-navigation-check.mjs
+      - name: Browser safety entry inspection (no browser launch)
+        run: node tests/browser-safety-check.mjs
       - run: npm run build
+      - name: Studio body and camera geometry (no browser launch)
+        run: node tests/studio-contact-geometry.mjs

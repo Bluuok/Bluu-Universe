@@ -1,4 +1,4 @@
-import {chromium} from '@playwright/test';import {flyTo,faceHeading} from './room-flight-route.mjs';import {mkdir,writeFile} from 'node:fs/promises';import assert from 'node:assert/strict';
+import {chromium} from './browser-runtime.mjs';import {flyTo,faceHeading} from './room-flight-route.mjs';import {mkdir,writeFile} from 'node:fs/promises';import assert from 'node:assert/strict';
 import {runtimeBuildIdentity} from './runtime-build-identity.mjs';
 const phase=process.env.PAINT_CAMERA_PHASE||'before',out=process.env.PAINT_CAMERA_OUT||`screenshots/v22-paint-camera-${phase}`;await mkdir(out,{recursive:true});
 const target=JSON.parse(process.env.PAINT_CAMERA_TARGET||'[-110.46617,-35.08571,-121.13181]'),baseYaw=Number(process.env.PAINT_CAMERA_YAW||'.09698'),basePitch=Number(process.env.PAINT_CAMERA_PITCH||'-.14166');

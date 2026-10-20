@@ -1,6 +1,6 @@
 // Local interactive verification harness. Browser actions are real trusted
 // keyboard/pointer input; page evaluation reads diagnostics only.
-import { chromium } from '@playwright/test';
+import { chromium } from './browser-runtime.mjs';
 import { createServer } from 'node:http';
 import { mkdir, writeFile, readFile, readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';

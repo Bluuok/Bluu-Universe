@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {chromium} from '@playwright/test';
+import {chromium} from './browser-runtime.mjs';
 import {createServer} from 'vite';
 
 // Actual browser input and production app telemetry. No direct writes to the

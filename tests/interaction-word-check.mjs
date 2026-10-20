@@ -1,4 +1,4 @@
-import{build}from'esbuild';import{chromium}from'@playwright/test';import{writeFile,unlink}from'node:fs/promises';import path from'node:path';
+import{build}from'esbuild';import{chromium}from'./browser-runtime.mjs';import{writeFile,unlink}from'node:fs/promises';import path from'node:path';
 const bundle=path.resolve('tests',`.word-local-${process.pid}.js`),report={at:new Date().toISOString(),method:'Production ParticleWords with real browser Canvas font sampling, isolated scenes and deterministic fixed-word contact. No renderer or live-page state injection; native visual evidence is separate.'};
 await build({stdin:{contents:"import * as THREE from 'three';import{ParticleWords}from'./src/scenes/sky/ParticleWords.js';import{WordFieldManifest}from'./src/config/WordFieldManifest.js';window.wordProbe={THREE,ParticleWords,WordFieldManifest};",resolveDir:process.cwd()},bundle:true,format:'iife',platform:'browser',outfile:bundle,logLevel:'silent'});
 const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});

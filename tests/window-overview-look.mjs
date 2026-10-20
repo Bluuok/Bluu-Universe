@@ -1,4 +1,4 @@
-import {chromium} from '@playwright/test';
+import {chromium} from './browser-runtime.mjs';
 import fs from 'node:fs/promises';
 import {flyIntoRoom} from './room-flight-route.mjs';
 const out=process.env.WINDOW_OUT||'E:/temp/starhaven-rc57-window-diagnosis',url=process.env.WINDOW_URL||'http://127.0.0.1:4257/';

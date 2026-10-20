@@ -1,5 +1,5 @@
 import {runtimeBuildIdentity} from './runtime-build-identity.mjs';
-import {chromium} from '@playwright/test';
+import {chromium} from './browser-runtime.mjs';
 import * as THREE from 'three';
 import {flyTo,faceHeading} from './room-flight-route.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';

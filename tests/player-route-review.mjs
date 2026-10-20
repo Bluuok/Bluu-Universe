@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {mkdir,readFile,writeFile,rename} from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {chromium} from '@playwright/test';
+import {chromium} from './browser-runtime.mjs';
 const expected=process.env.PLAYER_BUILD||(await readFile('dist/index.html','utf8')).match(/assets\/(index-[^" ]+\.js)/)[1],url='http://127.0.0.1:4175',timeout=180000;
 const outDir=path.resolve(process.env.PLAYER_SHOTS||'screenshots/v04-alpha4-player-review'),file=process.env.PLAYER_REPORT||'tests/v04-alpha4-player-review.json';
 const viewport={width:1440,height:960};

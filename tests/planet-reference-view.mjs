@@ -1,5 +1,5 @@
 // Visual comparison of the exact user reference. It remains outside production.
-import {chromium} from '@playwright/test';
+import {chromium} from './browser-runtime.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 await mkdir('screenshots/v08-planet-reference',{recursive:true});
 const browser=await chromium.launch({headless:true,executablePath:'C:/Users/ertstyuqk/AppData/Local/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-win64/chrome-headless-shell.exe',args:['--use-angle=d3d11','--enable-gpu','--disable-software-rasterizer']});

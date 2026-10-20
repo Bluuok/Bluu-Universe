@@ -1,4 +1,4 @@
-import {chromium} from '@playwright/test';
+import {chromium} from './browser-runtime.mjs';
 import {flyIntoRoom} from './room-flight-route.mjs';
 import {runtimeBuildIdentity} from './runtime-build-identity.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';

@@ -1,7 +1,7 @@
 // Isolated production-sky render fixtures. These cannot substitute for actual
 // player routes: only this separate test renderer has programmable directions.
 import {build} from 'esbuild';
-import {chromium} from '@playwright/test';
+import {chromium} from './browser-runtime.mjs';
 import {createServer} from 'node:http';
 import {readFile,writeFile,mkdir,unlink} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
