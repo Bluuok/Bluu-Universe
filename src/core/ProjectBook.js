@@ -138,15 +138,21 @@ export class ProjectBook {
     const next = Math.max(0, Math.min(2, requested));
     if (next === this.page) return;
     const forward = next > this.page;
-    const face = this.panel.querySelector(forward ? '.book-right' : '.book-left').cloneNode(true);
+    const source = this.panel.querySelector(forward ? '.book-right' : '.book-left');
+    const visible = {top:source.scrollTop,left:source.scrollLeft,page:this.page};
+    const face = source.cloneNode(true);
     face.removeAttribute('id');
     face.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
     face.querySelectorAll('a,button').forEach(el => el.setAttribute('tabindex', '-1'));
     this.cancelTurn(); const revision = this.turnRevision;
     this.status = 'turning'; this.page = next; this.render();
     this.sheet.dataset.direction = forward ? 'next' : 'previous';
+    this.sheet.dataset.page = String(visible.page);
     this.sheet.replaceChildren(face); this.sheet.hidden = false;
-    await this.animate(this.sheet, [{transform:'rotateY(0deg)', opacity:1},{transform:`rotateY(${forward ? -172 : 172}deg)`, opacity:.12}]);
+    // Keep the outgoing viewport intact while the new spread starts at top.
+    face.scrollTop = visible.top; face.scrollLeft = visible.left;
+    // Paper remains opaque; the hidden reverse face reveals the new spread.
+    await this.animate(this.sheet, [{transform:'rotateY(0deg)', opacity:1},{transform:`rotateY(${forward ? -172 : 172}deg)`, opacity:1}]);
     if (revision === this.turnRevision) { this.sheet.hidden = true; this.sheet.replaceChildren(); this.status = 'open'; }
   }
 
