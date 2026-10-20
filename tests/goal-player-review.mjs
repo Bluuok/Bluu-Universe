@@ -1,5 +1,5 @@
 import {runtimeBuildIdentity} from './runtime-build-identity.mjs';
-import {chromium} from './browser-runtime.mjs';
+import {chromium,desktopLaunchOptions} from './browser-runtime.mjs';
 import {flyTo,flyIntoRoom,faceHeading} from './room-flight-route.mjs';
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
@@ -8,13 +8,13 @@ import path from 'node:path';
 const url=process.env.GOAL_URL||'http://127.0.0.1:4259/',out=process.env.GOAL_OUT||'screenshots/v13-player-review';
 const file=process.env.GOAL_REPORT||'tests/v13-player-review.json';
 await mkdir(out,{recursive:true});
-const browser=await chromium.launch({headless:false,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',args:['--use-angle=d3d11','--enable-gpu','--disable-software-rasterizer','--disable-background-timer-throttling','--disable-renderer-backgrounding']});
+const browser=await chromium.launch(desktopLaunchOptions);
 const context=await browser.newContext({viewport:{width:1440,height:960},recordVideo:{dir:path.join(out,'video'),size:{width:1440,height:960}}});
 await context.addInitScript(()=>{window.__goalInputs=[];window.__goalSamples=[];let previous=0;
   for(const type of ['keydown','keyup','pointermove','pointerdown','pointerup','click','blur','focus'])window.addEventListener(type,e=>window.__goalInputs.push({type,code:e.code,trusted:e.isTrusted,x:e.clientX,y:e.clientY,time:performance.now()}),true);
   function sample(now){const a=window.starhaven;if(a?.ready&&now-previous>120){previous=now;window.__goalSamples.push({time:now,state:a.state,player:a.player,keys:a.keys,camera:a.camera,avoidance:a.framing?.avoidance,contacts:a.inspect.collision().lastSolve?.contacts});}requestAnimationFrame(sample);}requestAnimationFrame(sample);
 });
-const report={startedAt:new Date().toISOString(),method:'Three normal-reload routes, trusted keyboard/mouse and visible controls. Existing room-flight-route helpers are used directly. Evaluation only reads telemetry or passive event logs; no product pose/state/camera fixtures.',url,routes:[],runtimeErrors:[],requestFailures:[]};
+const report={startedAt:new Date().toISOString(),method:'Three normal-reload routes, trusted keyboard/mouse and visible controls. Existing room-flight-route helpers are used directly. Evaluation only reads telemetry or passive event logs; no product pose/state/camera fixtures.',environment:{platform:process.platform,executable:chromium.executablePath(),launchOptions:desktopLaunchOptions},url,routes:[],runtimeErrors:[],requestFailures:[]};
 let page,current;
 const observe=()=>page.evaluate(()=>({state:starhaven.state,player:starhaven.player,velocity:starhaven.velocity,flight:starhaven.flight,camera:starhaven.camera,framing:starhaven.framing,room:starhaven.inspect.roomEntities(),collision:starhaven.inspect.collision(),rendering:starhaven.rendering,project:starhaven.currentProject}));
 async function save(){await writeFile(file,JSON.stringify(report,null,2)+'\n');}
@@ -54,6 +54,7 @@ try{
     page.on('pageerror',e=>report.runtimeErrors.push({route:id,message:e.message}));page.on('console',m=>{if(m.type()==='error')report.runtimeErrors.push({route:id,message:m.text()});});page.on('requestfailed',r=>report.requestFailures.push({route:id,url:r.url(),error:r.failure()?.errorText}));
     await page.goto(url,{waitUntil:'networkidle'});await page.waitForFunction(()=>starhaven?.ready,{timeout:120000});await page.mouse.move(720,480);await page.waitForTimeout(800);
     const build=await runtimeBuildIdentity(page);if(report.build)assert.deepEqual(build,report.build);else report.build=build;
+    if(!report.renderer)report.renderer=await page.evaluate(()=>{const gl=document.getElementById('world').getContext('webgl2'),ext=gl.getExtension('WEBGL_debug_renderer_info');return{version:gl.getParameter(gl.VERSION),renderer:ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER),vendor:ext?gl.getParameter(ext.UNMASKED_VENDOR_WEBGL):gl.getParameter(gl.VENDOR)};});
     await shot('normal-spawn');
     if(id===1){
       await go([-15,12,-15],'west-clear');

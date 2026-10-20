@@ -1,0 +1,41 @@
+name: Remote desktop playthrough
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: remote-desktop-playthrough
+  cancel-in-progress: false
+
+jobs:
+  desktop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Browser safety entry inspection
+        run: node tests/browser-safety-check.mjs
+      - run: npm run build
+      - name: Install matched Linux Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Serial real-input routes (stop on first failure)
+        run: xvfb-run -a node tests/remote-desktop-review.mjs
+      - name: Preserve screenshots, videos and reports, including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-playthrough-${{ github.sha }}
+          path: |
+            screenshots/remote-desktop/
+            tests/remote-*.json
+          if-no-files-found: warn
+          retention-days: 1
+          compression-level: 6

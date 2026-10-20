@@ -1,11 +1,11 @@
 import {runtimeBuildIdentity} from './runtime-build-identity.mjs';
-import {chromium} from './browser-runtime.mjs';
+import {chromium,desktopLaunchOptions} from './browser-runtime.mjs';
 import {flyTo,flyIntoRoom} from './room-flight-route.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const out=process.env.CONTINUOUS_OUT||'screenshots/v14-rc63-continuous';await mkdir(out,{recursive:true});
-const report={started:new Date().toISOString(),method:'One normal load, one page, three consecutive real flight/entry/project/exit routes. No reload, Home, or pose/state/camera writes. Trusted mouse/keyboard and passive telemetry.',rounds:[],errors:[],requests:[]};
-const browser=await chromium.launch({headless:false,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',args:['--use-angle=d3d11','--disable-background-timer-throttling','--disable-renderer-backgrounding']});
+const report={started:new Date().toISOString(),method:'One normal load, one page, three consecutive real flight/entry/project/exit routes. No reload, Home, or pose/state/camera writes. Trusted mouse/keyboard and passive telemetry.',environment:{platform:process.platform,executable:chromium.executablePath(),launchOptions:desktopLaunchOptions},rounds:[],errors:[],requests:[]};
+const browser=await chromium.launch(desktopLaunchOptions);
 const context=await browser.newContext({viewport:{width:1440,height:960},recordVideo:{dir:out,size:{width:1440,height:960}}}),page=await context.newPage();
 await page.addInitScript(()=>{window.__continuousInputs=[];for(const type of ['keydown','keyup','pointermove','click'])window.addEventListener(type,e=>window.__continuousInputs.push({type,code:e.code,trusted:e.isTrusted}),true);});
 page.on('pageerror',e=>report.errors.push(e.message));page.on('requestfailed',r=>report.requests.push({url:r.url(),reason:r.failure()?.errorText}));
