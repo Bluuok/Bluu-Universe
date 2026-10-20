@@ -6,10 +6,10 @@ const clamp=THREE.MathUtils.clamp;
 // CPU authoring from actual overlapping strokes, not a rendered cloud volume
 // or texture. The installed Three mesher emits their closed outer surface;
 // the existing shared paint material still renders it.
-export function blendPaintStrokes(sources,{material,curve,normal,geometry:layout,palette,motion,resolution=96,smoothness=.26,profile={width:1,depth:1,axial:1.25,exponent:2},pigment:paint={width:1,strength:.8}}){
+export function blendPaintStrokes(sources,{material,curve,normal,geometry:layout,palette,motion,resolution=96,maxTriangles=26000,smoothness=.26,profile={width:1,depth:1,axial:1.25,exponent:2},pigment:paint={width:1,strength:.8}}){
   const bounds=new THREE.Box3();for(const source of sources)bounds.union(source.geometry.boundingBox);
   bounds.expandByScalar(1.2);const size=bounds.getSize(new THREE.Vector3()),step=size.clone().divideScalar(resolution);
-  const mesher=new MarchingCubes(resolution,material,false,false,26000);mesher.isolation=0;mesher.field.fill(-1000);
+  const mesher=new MarchingCubes(resolution,material,false,false,maxTriangles);mesher.isolation=0;mesher.field.fill(-1000);
   const field=mesher.field,p=new THREE.Vector3(),v=new THREE.Vector3(),tangent=new THREE.Vector3(),wide=new THREE.Vector3(),deep=new THREE.Vector3();
   const ellipsoids=[];
   const goldPaths=sources.filter(s=>s.coat).map(source=>{
@@ -53,7 +53,7 @@ export function blendPaintStrokes(sources,{material,curve,normal,geometry:layout
     }
   }
   mesher.update();
-  if(mesher.count/3>=26000){mesher.geometry.dispose();throw new Error('Near paint blend exceeds mesher buffer');}
+  if(mesher.count/3>=maxTriangles){mesher.geometry.dispose();throw new Error('Paint blend exceeds mesher buffer');}
   const positions=new Float32Array(mesher.count*3);
   for(let i=0;i<mesher.count;i++){p.fromArray(mesher.positionArray,i*3).addScalar(1).multiply(size).multiplyScalar(.5).add(bounds.min);positions.set(p.toArray(),i*3);}
   // Reuse the mesher's field gradients instead of lighting its irregular

@@ -9,6 +9,7 @@ on:
       - 'tests/painterly-parallax-check.mjs'
       - 'tests/paint-normal-check.mjs'
       - 'tests/paint-blend-check.mjs'
+      - 'tests/paint-camera-check.mjs'
       - 'package*.json'
       - '.github/workflows/frontend-sky-smoke.yml'
   workflow_dispatch:
@@ -32,4 +33,5 @@ jobs:
         run: |
           node tests/paint-normal-check.mjs
           node tests/paint-blend-check.mjs
+          node tests/paint-camera-check.mjs
       - run: npm run build

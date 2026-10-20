@@ -8,8 +8,8 @@ import {pathToFileURL} from 'node:url';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 
-const checkpointPath=process.env.PAINT_NORMAL_CHECKPOINT||'.baseline/v30-material-before.json';
-const checkpoint=await readFile(checkpointPath,'utf8').then(JSON.parse).catch(e=>{if(e.code==='ENOENT')return null;throw e;});
+const checkpointPath=process.env.PAINT_NORMAL_CHECKPOINT;
+const checkpoint=checkpointPath?await readFile(checkpointPath,'utf8').then(JSON.parse):null;
 const report={method:'Actual generated paint geometry, normals, borrowed material and camera proxy. Optional saved RC76 source comparison is CPU isolation, not GPU art acceptance.',checks:[]};
 const temporary=path.resolve(`tests/.paint-normal-before-${process.pid}.mjs`),scene=new THREE.Scene(),vortex=new VortexField({scene});
 let before,after;
@@ -67,7 +67,7 @@ try{
     const compile=m=>{const shader={vertexShader:THREE.ShaderLib.standard.vertexShader,fragmentShader:THREE.ShaderLib.standard.fragmentShader,uniforms:{}};m.onBeforeCompile(shader);return shader;};
     const sa=compile(before.material),sb=compile(after.material);assert.equal(sb.vertexShader,sa.vertexShader);assert.equal(sb.fragmentShader,sa.fragmentShader);assert.deepEqual(sb.uniforms,sa.uniforms);
     report.checks.push({name:'Only rendered normals change; positions, indices, UV, pigment, animation, shader and camera proxy positions/indices preserved',passed:true,changedNormals:changed});
-  }else report.checks.push({name:'RC76 source byte comparison',skipped:true,reason:'Optional local source checkpoint unavailable'});
+  }else report.checks.push({name:'RC76 source byte comparison',skipped:true,reason:'Historical isolation comparison not requested; current meshes use reconstructed geometric normals'});
   report.status='passed';
 }catch(error){report.status='failed';report.failure=error.stack;process.exitCode=1;}
 finally{before?.dispose();after?.dispose();vortex.dispose();await unlink(temporary).catch(e=>{if(e.code!=='ENOENT')throw e;});await writeFile(process.env.PAINT_NORMAL_REPORT||'tests/v30-paint-normal-check.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report));}

@@ -151,7 +151,7 @@ export class PaintFlowField {
         }
       }
       if(recipe.blend){
-        const result=blendPaintStrokes(blendSources,{material,curve,normal,geometry:config.geometry,palette,motion:config.motion,...config.blend});
+        const result=blendPaintStrokes(blendSources,{material,curve,normal,geometry:config.geometry,palette,motion:config.motion,...config.blend,...(typeof recipe.blend==='object'?recipe.blend:{})});
         if(!clearsPassages(result.geometry,this.passages,config.clearance+config.motion.amplitude)){result.geometry.dispose();throw new Error('Blended near paint violates passage clearance');}
         const replaced=collections[recipe.group].splice(partStart),sourceVertices=replaced.reduce((sum,g)=>sum+g.attributes.position.count,0),sourceTriangles=replaced.reduce((sum,g)=>sum+g.index.count/3,0);
         for(const part of replaced)part.dispose();
