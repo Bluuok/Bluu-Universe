@@ -7,7 +7,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import {VortexField} from '../src/scenes/sky/VortexField.js';
 import {PaintFlowField} from '../src/scenes/sky/PaintFlowField.js';
-const report={at:new Date().toISOString(),method:'Actual near/far fused surface topology and shared-vertex motion; optional RC78 comparison verifies both curls and shared material unchanged. CPU only.',checks:[],topologies:[]};
+const report={at:new Date().toISOString(),method:'Actual near/far fused surface topology and shared-vertex motion; optional RC78 comparison verifies both curls, three material scalars and borrowed atlas identity. Shader text is outside this check. CPU only.',checks:[],topologies:[]};
 const checkpoint=await readFile(process.env.PAINT_BLEND_CHECKPOINT||'.baseline/v34-s-before.json','utf8').then(JSON.parse).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
 const temporary=path.resolve(`tests/.paint-blend-before-${process.pid}.mjs`);let Before;
 if(checkpoint){
@@ -23,7 +23,7 @@ const check=(name,fn)=>{const evidence=fn();report.checks.push({name,passed:true
 const bytes=(a,offset=0)=>Buffer.from(a.array.buffer,a.array.byteOffset+offset*a.itemSize*a.array.BYTES_PER_ELEMENT,(a.array.length-offset*a.itemSize)*a.array.BYTES_PER_ELEMENT);
 try{
  const blend=after.telemetry.blended[0],old=before?.meshes.find(m=>m.name.endsWith(':1')).geometry,g=after.meshes.find(m=>m.name.endsWith(':1')).geometry;
- if(before)check('Both curls preserve every geometry/animation byte; shared material unchanged',()=>{
+ if(before)check('Both curls preserve geometry/animation bytes; material scalars and borrowed atlas identity stable',()=>{
   assert.deepEqual(g.index.array.slice(0,blend.triangles*3),old.index.array.slice(0,blend.triangles*3));
   for(const key of Object.keys(g.attributes)){const end=blend.renderedVertices*g.attributes[key].itemSize;assert.deepEqual(g.attributes[key].array.slice(0,end),old.attributes[key].array.slice(0,end),key);}
   const far=after.meshes.find(m=>m.name.endsWith(':2')).geometry,oldFar=before.meshes.find(m=>m.name.endsWith(':2')).geometry;assert.deepEqual(far.index.array,oldFar.index.array);for(const key of Object.keys(far.attributes))assert(bytes(far.attributes[key]).equals(bytes(oldFar.attributes[key])),key);

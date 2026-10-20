@@ -102,7 +102,8 @@ export function makeVortexPaintMaterial(profile,{cloud=false,brushAtlas}={}) {
         return mix(mix(paintPatch(p,cell),paintPatch(p,cell+vec2(1.,0.)),blend.x),
           mix(paintPatch(p,cell+vec2(0.,1.)),paintPatch(p,cell+vec2(1.)),blend.x),blend.y);
       }
-      ${paintBrushGLSL}
+      ${profile.flowStroke?paintBrushGLSL.replace(`vec2 grid=vec2(uv.x*density+.36*sin(uv.y*6.2831853*7.+sin(uv.x*.31))+.21*sin(uv.x*.8),
+          uv.y*rows+.25*sin(uv.x*1.35)+.23*sin(uv.y*6.2831853*5.+uv.x*.12));`,`vec2 grid=vec2(uv.x*density,uv.y*rows);`):paintBrushGLSL}
       `+shader.fragmentShader;
     shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
       vec2 paintUV=vec2(vOilUV.x*oilScale,vOilUV.y);
@@ -172,7 +173,7 @@ export function makeVortexPaintMaterial(profile,{cloud=false,brushAtlas}={}) {
   };
   material.userData.paintUniforms=paintUniforms;
   material.userData.permeable=cloud;
-  material.customProgramCacheKey=()=>profile.flowStroke?'vortex-bristle-flow-v2':cloud?'vortex-bristle-cloud-v10':'vortex-bristle-solid-v10';
+  material.customProgramCacheKey=()=>profile.flowStroke?'vortex-bristle-flow-v3':cloud?'vortex-bristle-cloud-v10':'vortex-bristle-solid-v10';
   return material;
 }
 
