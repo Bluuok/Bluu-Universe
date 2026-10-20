@@ -7,13 +7,13 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import {VortexField} from '../src/scenes/sky/VortexField.js';
 import {PaintFlowField} from '../src/scenes/sky/PaintFlowField.js';
-const report={at:new Date().toISOString(),method:'Actual near/far fused surface topology and shared-vertex motion; optional RC77 comparison verifies unchanged near curl/S geometry and shared material. CPU only.',checks:[],topologies:[]};
-const checkpoint=await readFile(process.env.PAINT_BLEND_CHECKPOINT||'.baseline/v32-far-before.json','utf8').then(JSON.parse).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
+const report={at:new Date().toISOString(),method:'Actual near/far fused surface topology and shared-vertex motion; optional RC78 comparison verifies both curls and shared material unchanged. CPU only.',checks:[],topologies:[]};
+const checkpoint=await readFile(process.env.PAINT_BLEND_CHECKPOINT||'.baseline/v34-s-before.json','utf8').then(JSON.parse).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
 const temporary=path.resolve(`tests/.paint-blend-before-${process.pid}.mjs`);let Before;
 if(checkpoint){
  for(const file of Object.values(checkpoint.files))assert.equal(createHash('sha256').update(file.text).digest('hex'),file.sha256);
  const result=await build({stdin:{contents:checkpoint.files['src/scenes/sky/PaintFlowField.js'].text,resolveDir:path.resolve('src/scenes/sky'),sourcefile:'prior-field.js'},bundle:true,format:'esm',platform:'node',packages:'external',write:false,
-  plugins:[{name:'saved-RC77-inputs',setup(build){build.onLoad({filter:/[\\/](PaintFlowBlend|PaintFlowManifest)\.js$/},args=>{
+  plugins:[{name:'saved-RC78-inputs',setup(build){build.onLoad({filter:/[\\/](PaintFlowBlend|PaintFlowManifest|VortexField)\.js$/},args=>{
    const entry=Object.entries(checkpoint.files).find(([name])=>args.path.replace(/\\/g,'/').endsWith('/'+name));assert.ok(entry,args.path);return {contents:entry[1].text,loader:'js',resolveDir:path.dirname(args.path)};
   });}}]});
  await writeFile(temporary,result.outputFiles[0].text);({PaintFlowField:Before}=await import(pathToFileURL(temporary)));
@@ -23,12 +23,15 @@ const check=(name,fn)=>{const evidence=fn();report.checks.push({name,passed:true
 const bytes=(a,offset=0)=>Buffer.from(a.array.buffer,a.array.byteOffset+offset*a.itemSize*a.array.BYTES_PER_ELEMENT,(a.array.length-offset*a.itemSize)*a.array.BYTES_PER_ELEMENT);
 try{
  const blend=after.telemetry.blended[0],old=before?.meshes.find(m=>m.name.endsWith(':1')).geometry,g=after.meshes.find(m=>m.name.endsWith(':1')).geometry;
- if(before)check('Near curl and complete S current preserve every geometry/animation byte; shared material unchanged',()=>{
-  assert.deepEqual(g.index.array,old.index.array);for(const key of Object.keys(g.attributes))assert(bytes(g.attributes[key]).equals(bytes(old.attributes[key])),key);
+ if(before)check('Both curls preserve every geometry/animation byte; shared material unchanged',()=>{
+  assert.deepEqual(g.index.array.slice(0,blend.triangles*3),old.index.array.slice(0,blend.triangles*3));
+  for(const key of Object.keys(g.attributes)){const end=blend.renderedVertices*g.attributes[key].itemSize;assert.deepEqual(g.attributes[key].array.slice(0,end),old.attributes[key].array.slice(0,end),key);}
+  const far=after.meshes.find(m=>m.name.endsWith(':2')).geometry,oldFar=before.meshes.find(m=>m.name.endsWith(':2')).geometry;assert.deepEqual(far.index.array,oldFar.index.array);for(const key of Object.keys(far.attributes))assert(bytes(far.attributes[key]).equals(bytes(oldFar.attributes[key])),key);
+  assert.deepEqual(after.config.paths.find(p=>p.id==='broad-s-current').points,before.config.paths.find(p=>p.id==='broad-s-current').points,'S authoring path changed');
   for(const key of ['roughness','metalness','envMapIntensity'])assert.equal(before.material[key],after.material[key]);assert.equal(before.material.userData.paintUniforms.oilBrushAtlas.value,after.material.userData.paintUniforms.oilBrushAtlas.value);
   return {sourceVertices:blend.sourceVertices,renderedVertices:blend.renderedVertices,sourceTriangles:blend.sourceTriangles,renderedTriangles:blend.triangles};
  });
- else report.checks.push({name:'RC77 exact isolation comparison',skipped:true,reason:'Optional local source checkpoint is absent; both current fused surfaces are still checked.'});
+ else report.checks.push({name:'RC78 exact isolation comparison',skipped:true,reason:'Optional local source checkpoint is absent; both current fused surfaces are still checked.'});
  for(const blend of after.telemetry.blended){
  const g=after.meshes.find(m=>m.name.endsWith(':'+blend.group)).geometry;
  check(blend.id+': rendered surface is closed, consistently wound, and welded motion/colour remains continuous',()=>{

@@ -10,6 +10,8 @@ on:
       - 'tests/paint-normal-check.mjs'
       - 'tests/paint-blend-check.mjs'
       - 'tests/paint-camera-check.mjs'
+      - 'tests/paint-sweep-check.mjs'
+      - 'tests/paint-flow-check.mjs'
       - 'package*.json'
       - '.github/workflows/frontend-sky-smoke.yml'
   workflow_dispatch:
@@ -34,4 +36,6 @@ jobs:
           node tests/paint-normal-check.mjs
           node tests/paint-blend-check.mjs
           node tests/paint-camera-check.mjs
+          node tests/paint-sweep-check.mjs
+          node tests/paint-flow-check.mjs
       - run: npm run build

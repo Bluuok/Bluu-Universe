@@ -14,7 +14,7 @@ for(const mesh of field.meshes)mesh.geometry.addEventListener('dispose',()=>disp
 field.material.addEventListener('dispose',()=>disposed.material++);vortex.brushAtlas.addEventListener('dispose',()=>disposed.atlas++);pigment.addEventListener('dispose',()=>disposed.pigment++);
 try{
  field.setPigmentTexture(pigment);report.telemetry=field.telemetry;
- check('Organized stroke paths stay inside explicit draw/triangle/gold budgets',()=>{const t=field.telemetry,b=PaintFlowManifest.budget;assert.equal(t.paths.length,PaintFlowManifest.paths.filter(p=>p.enabled!==false).length);assert.ok(t.strokes>0&&t.strokes<=b.strokes);assert.ok(t.triangles<=b.triangles);assert.ok(t.drawCalls<=b.drawCalls);assert.ok(t.gold/t.strokes<=.12);assert.equal(t.newTextures,0);});
+ check('Organized paths stay inside draw/triangle budgets with bounded embedded pigment coverage',()=>{const t=field.telemetry,b=PaintFlowManifest.budget,surfaces=[...t.blended,...t.sweeps];assert.equal(t.paths.length,PaintFlowManifest.paths.filter(p=>p.enabled!==false).length);assert.ok(t.strokes>0&&t.strokes<=b.strokes);assert.ok(t.triangles<=b.triangles);assert.ok(t.drawCalls<=b.drawCalls);assert.ok(surfaces.every(s=>s.goldVertices>0&&s.goldVertices/s.renderedVertices<=.12));assert.equal(t.newTextures,0);});
  const nearest=field.passages.map(p=>({id:p.id,distance:Infinity}));let minNormal=Infinity,maxNormal=0;const p=new THREE.Vector3(),n=new THREE.Vector3();
  for(const mesh of field.meshes){const g=mesh.geometry;for(const name of ['position','normal','uv','color','flowAxis','flowMotion'])assert.ok([...g.attributes[name].array].every(Number.isFinite),`Finite ${name}`);for(let i=0;i<g.attributes.position.count;i++){p.fromBufferAttribute(g.attributes.position,i);n.fromBufferAttribute(g.attributes.normal,i);minNormal=Math.min(minNormal,n.length());maxNormal=Math.max(maxNormal,n.length());for(let axis=0;axis<3;axis++){assert.ok(p.getComponent(axis)>=ExplorationBounds.min[axis]);assert.ok(p.getComponent(axis)<=ExplorationBounds.max[axis]);}for(const [index,passage]of field.passages.entries()){const [a,b]=passage.ends,delta=b.clone().sub(a),t=THREE.MathUtils.clamp(p.clone().sub(a).dot(delta)/delta.lengthSq(),0,1);nearest[index].distance=Math.min(nearest[index].distance,p.distanceTo(a.clone().addScaledVector(delta,t)));}}}
  report.geometry={passages:nearest,minNormal,maxNormal};
@@ -26,18 +26,6 @@ try{
  }}
  report.geometry.trianglePassages=exact.map(({id,distance})=>({id,distance}));
  check('Full triangles and capped faces preserve passage radius including maximum motion',()=>{assert.ok(exact.every(p=>p.distance>=PaintFlowManifest.clearance+PaintFlowManifest.motion.amplitude));});
- check('Connected S path meets curl endpoints with aligned tangents and routes its full width around passage axes',()=>{
-   const recipe=PaintFlowManifest.paths.find(p=>p.kind==='path'&&p.connections);if(!recipe)return;
-   const curve=field.makeCurve(recipe,vortex).curve,byId=id=>field.makeCurve(PaintFlowManifest.paths.find(p=>p.id===id),vortex).curve;
-   const from=byId(recipe.connections.from),to=byId(recipe.connections.to);
-   assert.ok(curve.getPointAt(0).distanceTo(from.getPointAt(0))<1e-8);
-   assert.ok(curve.getPointAt(1).distanceTo(to.getPointAt(0))<1e-8);
-   assert.ok(curve.getTangentAt(0).dot(from.getTangentAt(0).negate())>.999);
-   assert.ok(curve.getTangentAt(1).dot(to.getTangentAt(0))>.999);
-   const halfWidth=recipe.laneSpacing*(recipe.lanes-1)*.5*PaintFlowManifest.joins.laneSpread[1]+Math.max(...recipe.width)*PaintFlowManifest.joins.widthPressure[1]+PaintFlowManifest.joins.lateralWave;
-   const required=PaintFlowManifest.clearance+PaintFlowManifest.motion.amplitude+Math.max(halfWidth,PaintFlowManifest.underpaint.width);
-   const distances=field.passages.map(p=>{const line=new THREE.Line3(...p.ends),nearest=new THREE.Vector3();let minimum=Infinity;for(let i=0;i<=1200;i++){const point=curve.getPointAt(i/1200);minimum=Math.min(minimum,line.closestPointToPoint(point,true,nearest).distanceTo(point));}assert.ok(minimum>required,p.id);return{id:p.id,minimum,required};});report.connectorClearance=distances;
- });
  check('Motion advances locally and freezes for pause, hidden/state suppression and reduced motion',()=>{field.update(.02);const before=field.time;assert.ok(before>0);for(const options of [{paused:true},{enabled:false},{reducedMotion:true}]){field.update(.05,options);assert.equal(field.time,before);}field.update(.5);assert.ok(Math.abs(field.time-before-.05)<1e-9);});
  check('No renderer/RAF/camera ownership or mutable global material resources',()=>{assert.equal(field.renderer,undefined);assert.equal(field.camera,undefined);assert.equal(field.material.userData.paintUniforms.oilBrushAtlas.value,vortex.brushAtlas);assert.equal(field.material.userData.paintUniforms.oilPaintMap.value,pigment);});
  field.dispose();field.dispose();

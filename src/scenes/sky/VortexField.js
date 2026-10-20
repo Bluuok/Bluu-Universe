@@ -13,6 +13,16 @@ export function sweptBody(points,profile,{curveSegments,crossSegments},palette) 
   const base=new THREE.Color(palette.color),crest=new THREE.Color(palette.crest),shadow=new THREE.Color(palette.shadow),color=new THREE.Color();
   const p=new THREE.Vector3(),q=new THREE.Vector3(),tangent=new THREE.Vector3(),wide=new THREE.Vector3(),deep=new THREE.Vector3();
   const length=curve.getLength(),strokePlane=profile.paintStroke?new THREE.Vector3(...(profile.normal||[0,0,1])):null;
+  // Opt-in transport for long 3D strokes, seeded by the authored plane.
+  // Three's slowly rotating frames avoid a sudden width flip when the path
+  // approaches that plane's normal. Other profiles retain their old frame.
+  const frames=profile.transportFrame?curve.computeFrenetFrames(curveSegments,false):null;
+  let frameCos=1,frameSin=0;
+  if(frames){
+    wide.crossVectors(strokePlane||new THREE.Vector3(0,0,1),frames.tangents[0]).normalize();
+    if(wide.lengthSq()<1e-8)wide.copy(frames.normals[0]);
+    frameCos=wide.dot(frames.normals[0]);frameSin=wide.dot(frames.binormals[0]);
+  }
   const rawCaps=Array.from({length:curveSegments+1},(_,i)=>{
     const t=i/curveSegments,epsilon=.5/curveSegments;
     const turn=curve.getTangentAt(Math.max(0,t-epsilon)).angleTo(curve.getTangentAt(Math.min(1,t+epsilon)));
@@ -32,7 +42,8 @@ export function sweptBody(points,profile,{curveSegments,crossSegments},palette) 
     const t=i/curveSegments;curve.getPointAt(t,p);curve.getTangentAt(t,tangent);
     // Width lies across the authoring plane; depth follows its actual 3D
     // tangent. Arbitrary Frenet chart roll made the first prototype a hose.
-    if(strokePlane)wide.crossVectors(strokePlane,tangent).normalize();else wide.set(-tangent.y,tangent.x,0).normalize();deep.crossVectors(tangent,wide).normalize();
+    if(frames)wide.copy(frames.normals[i]).multiplyScalar(frameCos).addScaledVector(frames.binormals[i],frameSin).normalize();
+    else if(strokePlane)wide.crossVectors(strokePlane,tangent).normalize();else wide.set(-tangent.y,tangent.x,0).normalize();deep.crossVectors(tangent,wide).normalize();
     const envelope=Math.pow(Math.sin(Math.PI*t),.48),end=.03+.97*THREE.MathUtils.smoothstep(Math.min(t,1-t),0,.12);
     const pressure=profile.paintStroke?.96+.04*Math.sin(t*Math.PI*2+.4):.86+.11*Math.sin(t*16.4+1)+.065*Math.sin(t*31.7);
     const tip=profile.endSize??.03,roundedEnd=tip+(1-tip)*(end-.03)/.97;

@@ -4,6 +4,7 @@ import {ExtendedTriangle} from 'three-mesh-bvh';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {PaintFlowManifest} from '../../config/PaintFlowManifest.js';
 import {blendPaintStrokes} from './PaintFlowBlend.js';
+import {sweepPaintCurrent} from './PaintFlowSweep.js';
 import {sweptBody} from './VortexField.js';
 import {makeVortexPaintMaterial} from './VortexPaintMaterial.js';
 
@@ -68,7 +69,7 @@ function clearsPassages(geometry,passages,radius){
 export class PaintFlowField {
   constructor({scene,vortex,config=PaintFlowManifest}){
     this.config=config;this.group=new THREE.Group();this.group.name='DirectionalThickPaint';scene.add(this.group);
-    this.time=0;this.disposed=false;this.meshes=[];this.paths=[];this.blended=[];this.strokeCount=0;this.underpaintCount=0;this.goldCount=0;this.skipped=0;this.motionQuery=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');this.passages=[];
+    this.time=0;this.disposed=false;this.meshes=[];this.paths=[];this.blended=[];this.sweeps=[];this.strokeCount=0;this.underpaintCount=0;this.goldCount=0;this.skipped=0;this.motionQuery=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');this.passages=[];
     this.group.visible=config.enabled;if(!config.enabled)return;
     const palette=config.palette,surface=config.surface||{},random=randomFrom(config.seed),collections=[[],[],[]];
     vortex.group.updateWorldMatrix(true,true);
@@ -91,23 +92,17 @@ export class PaintFlowField {
     material.customProgramCacheKey=()=> 'directional-thick-paint-v3';
     for(const recipe of config.paths){
       if(recipe.enabled===false)continue;
-      const {curve,normal}=this.makeCurve(recipe,vortex),length=curve.getLength(),perLane=Math.ceil(recipe.count/recipe.lanes);
+      const {curve,normal}=this.makeCurve(recipe,vortex),length=curve.getLength();
       let accepted=0;const strokeLengths=[],blendSources=[],partStart=collections[recipe.group].length;
-      if(config.underpaint?.enabled&&recipe.kind==='path'){
-        const base=config.underpaint,segments=Math.ceil(length/base.segmentLength);
-        for(let section=0;section<segments;section++){
-          const start=clamp((section-.12)/segments,.002,.998),end=clamp((section+1.12)/segments,.002,.998),points=[];
-          for(let j=0;j<=12;j++)points.push(curve.getPointAt(THREE.MathUtils.lerp(start,end,j/12)).addScaledVector(normal,-.45));
-          const {geometry}=sweptBody(points,{paintStroke:true,normal:normal.toArray(),width:[base.width*.88,base.width],depth:[base.depth*.85,base.depth],endSize:.65,edgeBreakup:.04},{curveSegments:base.curveSegments,crossSegments:base.crossSegments},{color:palette.blue[0],crest:palette.blue[1],shadow:palette.shadow});
-          const position=geometry.attributes.position;
-          if(!clearsPassages(geometry,this.passages,config.clearance+config.motion.amplitude)){geometry.dispose();this.skipped++;continue;}
-          if(surface.globalUV)offsetPaintUV(geometry,start*length);
-          const axis=new Float32Array(position.count*3),motion=new Float32Array(position.count*2),tangent=curve.getTangentAt((start+end)*.5);
-          for(let vertex=0;vertex<position.count;vertex++){axis.set(tangent.toArray(),vertex*3);motion.set([section*.4,config.motion.rate],vertex*2);}
-          geometry.setAttribute('flowAxis',new THREE.BufferAttribute(axis,3));geometry.setAttribute('flowMotion',new THREE.BufferAttribute(motion,2));
-          collections[recipe.group].push(geometry);this.underpaintCount++;this.strokeCount++;
-        }
+      if(recipe.sweep){
+        const result=sweepPaintCurrent(recipe,{normal,palette,motion:config.motion});
+        if(!clearsPassages(result.geometry,this.passages,config.clearance+config.motion.amplitude)){result.geometry.dispose();throw new Error('Continuous paint violates passage clearance');}
+        const vertexOffset=collections[recipe.group].reduce((sum,g)=>sum+g.attributes.position.count,0),indexOffset=collections[recipe.group].reduce((sum,g)=>sum+g.index.count,0);
+        collections[recipe.group].push(result.geometry);this.strokeCount++;
+        this.sweeps.push({id:recipe.id,group:recipe.group,vertexOffset,indexOffset,...result.telemetry});
+        this.paths.push({id:recipe.id,kind:recipe.kind,strokes:1,length,strokeLengths:{min:length,median:length,max:length}});continue;
       }
+      const perLane=Math.ceil(recipe.count/recipe.lanes);
       for(let i=0;i<recipe.count;i++){
         const lane=i%recipe.lanes,index=Math.floor(i/recipe.lanes),t=(index+.45+lane*.37+(random()-.5)*.56)/perLane;
         if(t>=.985)continue;
@@ -193,6 +188,6 @@ export class PaintFlowField {
   }
   setPigmentTexture(texture){const u=this.material?.userData.paintUniforms;if(u){u.oilPaintMap.value=texture||null;u.oilPaintLoaded.value=texture?1:0;}}
   update(dt,{enabled=true,paused=false,reducedMotion=false}={}){if(this.disposed||!this.config.enabled)return;if(enabled&&!paused&&!reducedMotion&&!this.motionQuery?.matches)this.time+=Math.min(Math.max(dt||0,0),.05);this.clockUniform.value=this.time;}
-  get telemetry(){return {cameraProxy:{integrated:Boolean(this.cameraCollider),triangles:this.cameraCollider?.geometry.index.count/3||0,rendered:false,baseGeometry:true,shaderSway:this.config.motion.amplitude},enabled:this.config.enabled,disposed:this.disposed,strokes:this.strokeCount-this.blended.reduce((sum,p)=>sum+p.sourceParts-p.renderedParts,0),authoredStrokes:this.strokeCount,underpaint:this.underpaintCount,gold:this.goldCount,goldCoats:this.goldCount-this.blended.reduce((sum,p)=>sum+p.sourceGoldMarks,0),embeddedGoldMarks:this.blended.reduce((sum,p)=>sum+p.sourceGoldMarks,0),skippedForClearance:this.skipped,drawCalls:this.meshes.length,triangles:this.meshes.reduce((s,m)=>s+m.geometry.index.count/3,0),newTextures:0,blended:this.blended,paths:this.paths,passages:this.passages.map(p=>({id:p.id,front:p.ends[0].toArray(),center:p.ends[0].clone().lerp(p.ends[1],.5).toArray(),back:p.ends[1].toArray()})),time:this.time,motionAmplitude:this.config.motion.amplitude};}
+  get telemetry(){return {cameraProxy:{integrated:Boolean(this.cameraCollider),triangles:this.cameraCollider?.geometry.index.count/3||0,rendered:false,baseGeometry:true,shaderSway:this.config.motion.amplitude},enabled:this.config.enabled,disposed:this.disposed,strokes:this.strokeCount-this.blended.reduce((sum,p)=>sum+p.sourceParts-p.renderedParts,0),authoredStrokes:this.strokeCount,underpaint:this.underpaintCount,gold:this.goldCount,goldCoats:this.goldCount-this.blended.reduce((sum,p)=>sum+p.sourceGoldMarks,0),embeddedGoldMarks:this.blended.reduce((sum,p)=>sum+p.sourceGoldMarks,0)+this.sweeps.reduce((sum,p)=>sum+p.pigmentMarks,0),skippedForClearance:this.skipped,drawCalls:this.meshes.length,triangles:this.meshes.reduce((s,m)=>s+m.geometry.index.count/3,0),newTextures:0,blended:this.blended,sweeps:this.sweeps,paths:this.paths,passages:this.passages.map(p=>({id:p.id,front:p.ends[0].toArray(),center:p.ends[0].clone().lerp(p.ends[1],.5).toArray(),back:p.ends[1].toArray()})),time:this.time,motionAmplitude:this.config.motion.amplitude};}
   dispose(){if(this.disposed)return;this.disposed=true;this.group.removeFromParent();for(const mesh of this.meshes)mesh.geometry.dispose();this.material?.dispose();if(this.cameraCollider){this.cameraCollider.geometry.dispose();this.cameraCollider.mesh.material.dispose();this.cameraCollider=null;}}
 }
