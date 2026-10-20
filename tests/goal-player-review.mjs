@@ -52,8 +52,9 @@ try{
   for(let id=1;id<=3;id++){
     current={id,status:'running',steps:[],contacts:[]};report.routes.push(current);page=await context.newPage();
     page.on('pageerror',e=>report.runtimeErrors.push({route:id,message:e.message}));page.on('console',m=>{if(m.type()==='error')report.runtimeErrors.push({route:id,message:m.text()});});page.on('requestfailed',r=>report.requestFailures.push({route:id,url:r.url(),error:r.failure()?.errorText}));
-    await page.goto(url,{waitUntil:'networkidle'});await page.waitForFunction(()=>starhaven?.ready,{timeout:120000});await page.mouse.move(720,480);await page.waitForTimeout(800);
+    await page.goto(url,{waitUntil:'networkidle'});
     const build=await runtimeBuildIdentity(page);if(report.build)assert.deepEqual(build,report.build);else report.build=build;
+    await page.waitForFunction(()=>window.starhaven?.ready,null,{timeout:120000});await page.mouse.move(720,480);await page.waitForTimeout(800);
     if(!report.renderer)report.renderer=await page.evaluate(()=>{const gl=document.getElementById('world').getContext('webgl2'),ext=gl.getExtension('WEBGL_debug_renderer_info');return{version:gl.getParameter(gl.VERSION),renderer:ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER),vendor:ext?gl.getParameter(ext.UNMASKED_VENDOR_WEBGL):gl.getParameter(gl.VENDOR)};});
     await shot('normal-spawn');
     if(id===1){
@@ -78,5 +79,5 @@ try{
     current.inputs=await page.evaluate(()=>window.__goalInputs);current.samples=await page.evaluate(()=>window.__goalSamples);assert.ok(current.inputs.every(e=>e.trusted));current.trustedInputs=current.inputs.length;current.status='passed';current.video=await page.video().path();await page.close();await save();
   }
   assert.equal(report.routes.filter(r=>r.status==='passed').length,3);assert.deepEqual(report.runtimeErrors,[]);report.status=report.requestFailures.length?'completed-with-request-diagnostics':'passed';
-}catch(e){report.status='failed';report.failure={message:e.message,stack:e.stack};if(current)current.status='failed';if(page&&!page.isClosed()){current.inputs=await page.evaluate(()=>window.__goalInputs).catch(()=>[]);current.samples=await page.evaluate(()=>window.__goalSamples).catch(()=>[]);await shot('failure').catch(()=>{});}process.exitCode=1;}
+}catch(e){report.status='failed';report.failure={message:e.message,stack:e.stack};if(current)current.status='failed';if(page&&!page.isClosed()){current.inputs=await page.evaluate(()=>window.__goalInputs).catch(()=>[]);current.samples=await page.evaluate(()=>window.__goalSamples).catch(()=>[]);current.failureContext=await page.evaluate(()=>({url:location.href,appPresent:Boolean(window.starhaven),ready:window.starhaven?.ready??false,loading:document.getElementById('loading')?.innerText,resources:performance.getEntriesByType('resource').length})).catch(()=>null);current.failureScreenshot=path.join(out,`route-${current.id}-failure.png`);await page.screenshot({path:current.failureScreenshot}).catch(()=>{});}process.exitCode=1;}
 finally{await context.close();await browser.close();report.browserClosed=true;report.finishedAt=new Date().toISOString();await save();console.log(JSON.stringify({status:report.status,failure:report.failure?.message,routes:report.routes.map(r=>({id:r.id,status:r.status,steps:r.steps.length,inputs:r.inputs?.length})),errors:report.runtimeErrors.length,requests:report.requestFailures.length,browserClosed:true}));}

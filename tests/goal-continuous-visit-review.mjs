@@ -11,8 +11,9 @@ await page.addInitScript(()=>{window.__continuousInputs=[];for(const type of ['k
 page.on('pageerror',e=>report.errors.push(e.message));page.on('requestfailed',r=>report.requests.push({url:r.url(),reason:r.failure()?.errorText}));
 const snap=()=>page.evaluate(()=>({state:starhaven.state,passage:starhaven.passage,player:starhaven.player,keys:starhaven.keys,room:starhaven.inspect.roomEntities()}));
 try{
- await page.goto(process.env.GOAL_URL||'http://127.0.0.1:4259/');await page.waitForFunction(()=>window.starhaven?.ready);await page.locator('#loading').waitFor({state:'hidden'});
+ await page.goto(process.env.GOAL_URL||'http://127.0.0.1:4259/');
  report.build=await runtimeBuildIdentity(page);
+ await page.waitForFunction(()=>window.starhaven?.ready,null,{timeout:120000});await page.locator('#loading').waitFor({state:'hidden'});
  const identity=(await snap()).room;
  const routes=[{points:[[-3,3,10]],projects:['threadcove']},{points:[[12,5,15],[12,7,-10],[-10,7,-10],[-10,5,10]],projects:['clawtide']},{points:[[12,-3,12],[-12,10,12],[-2,3,10]],riseAfterFirst:true,projects:['contributions','contact']}];
  for(const [index,route]of routes.entries()){

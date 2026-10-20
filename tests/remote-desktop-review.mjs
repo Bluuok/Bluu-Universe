@@ -2,8 +2,9 @@
 import { chromium } from './browser-runtime.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { gzipSync } from 'node:zlib';
 import { preview } from 'vite';
 
 assert.equal(process.platform, 'linux', 'Remote desktop QA requires Linux');
@@ -58,4 +59,21 @@ finally {
   report.finished = new Date().toISOString();
   await writeFile('tests/remote-desktop-summary.json', JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify(report));
+  // Artifact downloads failed at the Azure storage connection on the host.
+  // Also preserve bounded, checksummed project evidence in ordinary job logs.
+  // No tokens, environment dump, arbitrary paths or Windows files are read.
+  const pictures = (await readdir(root, { recursive: true }))
+    .filter(file => file.endsWith('.png')).sort((a, b) => Number(b.includes('failure')) - Number(a.includes('failure')));
+  let remaining = 12 * 1024 * 1024;
+  for (const file of ['tests/remote-desktop-summary.json', 'tests/remote-player.json', 'tests/remote-continuous.json', ...pictures.map(file => `${root}/${file}`)]) {
+    const bytes = await readFile(file).catch(() => null); if (!bytes) continue;
+    const compressed = gzipSync(bytes);
+    if (compressed.length > remaining) continue;
+    remaining -= compressed.length;
+    console.log('REMOTE_QA_FILE_BEGIN ' + JSON.stringify({ file, bytes: bytes.length,
+      sha256: createHash('sha256').update(bytes).digest('hex'), encoding: 'gzip-base64' }));
+    const encoded = compressed.toString('base64');
+    for (let offset = 0; offset < encoded.length; offset += 16000) console.log('REMOTE_QA_FILE_DATA ' + encoded.slice(offset, offset + 16000));
+    console.log('REMOTE_QA_FILE_END');
+  }
 }
