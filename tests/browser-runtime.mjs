@@ -22,3 +22,26 @@ export const desktopLaunchOptions = {
     '--enable-unsafe-swiftshader', '--disable-background-timer-throttling',
     '--disable-renderer-backgrounding'],
 };
+
+// The remote SwiftShader run reached ready=true, but Playwright's surface
+// screenshot timed out. Capture the actual headed view through CDP instead;
+// never pause animation, alter render quality, or substitute a DOM mock.
+export async function saveDesktopFrame(page, file) {
+  if (process.platform !== 'linux' || process.env.GITHUB_ACTIONS !== 'true')
+    throw new Error('Desktop view capture is restricted to the remote Linux job');
+  const session = await page.context().newCDPSession(page);
+  let timer;
+  try {
+    const result = await Promise.race([
+      session.send('Page.captureScreenshot', { format: 'png', fromSurface: false, captureBeyondViewport: false }),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Remote view capture exceeded 10 seconds')), 10000); }),
+    ]);
+    const bytes = Buffer.from(result.data, 'base64'), viewport = page.viewportSize();
+    if (bytes.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') throw new Error('Remote frame is not a PNG');
+    const width = bytes.readUInt32BE(16), height = bytes.readUInt32BE(20);
+    if (width !== viewport.width || height !== viewport.height)
+      throw new Error(`Remote frame was clipped: ${width}x${height}, expected ${viewport.width}x${viewport.height}`);
+    const { writeFile } = await import('node:fs/promises'); await writeFile(file, bytes);
+    return { method: 'CDP.Page.captureScreenshot fromSurface=false', width, height };
+  } finally { clearTimeout(timer); await session.detach(); }
+}

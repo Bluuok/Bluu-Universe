@@ -27,7 +27,7 @@ jobs:
       - name: Install matched Linux Chromium
         run: npx playwright install --with-deps chromium
       - name: Serial real-input routes (stop on first failure)
-        run: xvfb-run -a node tests/remote-desktop-review.mjs
+        run: xvfb-run -a -s "-screen 0 1600x1100x24" node tests/remote-desktop-review.mjs
       - name: Preserve screenshots, videos and reports, including failures
         if: always()
         uses: actions/upload-artifact@v4

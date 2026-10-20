@@ -1,5 +1,5 @@
 import {runtimeBuildIdentity} from './runtime-build-identity.mjs';
-import {chromium,desktopLaunchOptions} from './browser-runtime.mjs';
+import {chromium,desktopLaunchOptions,saveDesktopFrame} from './browser-runtime.mjs';
 import {flyTo,flyIntoRoom,faceHeading} from './room-flight-route.mjs';
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
@@ -18,7 +18,7 @@ const report={startedAt:new Date().toISOString(),method:'Three normal-reload rou
 let page,current;
 const observe=()=>page.evaluate(()=>({state:starhaven.state,player:starhaven.player,velocity:starhaven.velocity,flight:starhaven.flight,camera:starhaven.camera,framing:starhaven.framing,room:starhaven.inspect.roomEntities(),collision:starhaven.inspect.collision(),rendering:starhaven.rendering,project:starhaven.currentProject}));
 async function save(){await writeFile(file,JSON.stringify(report,null,2)+'\n');}
-async function shot(name){const p=path.join(out,`route-${current.id}-${name}.png`);await page.screenshot({path:p});const observation=await observe();current.steps.push({name,screenshot:p,observation});await save();console.log(JSON.stringify({route:current.id,step:name,state:observation.state,player:observation.player}));}
+async function shot(name){const p=path.join(out,`route-${current.id}-${name}.png`);const capture=await saveDesktopFrame(page,p);const observation=await observe();current.steps.push({name,screenshot:p,capture,observation});await save();console.log(JSON.stringify({route:current.id,step:name,state:observation.state,player:observation.player}));}
 async function go(p,name,radius=1.0){await flyTo(page,p,{radius,timeout:60000});await shot(name);}
 const wrap=v=>Math.atan2(Math.sin(v),Math.cos(v));
 async function face(yaw,pitch=0){
@@ -79,5 +79,5 @@ try{
     current.inputs=await page.evaluate(()=>window.__goalInputs);current.samples=await page.evaluate(()=>window.__goalSamples);assert.ok(current.inputs.every(e=>e.trusted));current.trustedInputs=current.inputs.length;current.status='passed';current.video=await page.video().path();await page.close();await save();
   }
   assert.equal(report.routes.filter(r=>r.status==='passed').length,3);assert.deepEqual(report.runtimeErrors,[]);report.status=report.requestFailures.length?'completed-with-request-diagnostics':'passed';
-}catch(e){report.status='failed';report.failure={message:e.message,stack:e.stack};if(current)current.status='failed';if(page&&!page.isClosed()){current.inputs=await page.evaluate(()=>window.__goalInputs).catch(()=>[]);current.samples=await page.evaluate(()=>window.__goalSamples).catch(()=>[]);current.failureContext=await page.evaluate(()=>({url:location.href,appPresent:Boolean(window.starhaven),ready:window.starhaven?.ready??false,loading:document.getElementById('loading')?.innerText,resources:performance.getEntriesByType('resource').length})).catch(()=>null);current.failureScreenshot=path.join(out,`route-${current.id}-failure.png`);await page.screenshot({path:current.failureScreenshot}).catch(()=>{});}process.exitCode=1;}
+}catch(e){report.status='failed';report.failure={message:e.message,stack:e.stack};if(current)current.status='failed';if(page&&!page.isClosed()){current.inputs=await page.evaluate(()=>window.__goalInputs).catch(()=>[]);current.samples=await page.evaluate(()=>window.__goalSamples).catch(()=>[]);current.failureContext=await page.evaluate(()=>({url:location.href,appPresent:Boolean(window.starhaven),ready:window.starhaven?.ready??false,loading:document.getElementById('loading')?.innerText,resources:performance.getEntriesByType('resource').length})).catch(()=>null);current.failureScreenshot=path.join(out,`route-${current.id}-failure.png`);await saveDesktopFrame(page,current.failureScreenshot).catch(error=>{current.failureCaptureError=error.message;});}process.exitCode=1;}
 finally{await context.close();await browser.close();report.browserClosed=true;report.finishedAt=new Date().toISOString();await save();console.log(JSON.stringify({status:report.status,failure:report.failure?.message,routes:report.routes.map(r=>({id:r.id,status:r.status,steps:r.steps.length,inputs:r.inputs?.length})),errors:report.runtimeErrors.length,requests:report.requestFailures.length,browserClosed:true}));}

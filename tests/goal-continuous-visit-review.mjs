@@ -1,5 +1,5 @@
 import {runtimeBuildIdentity} from './runtime-build-identity.mjs';
-import {chromium,desktopLaunchOptions} from './browser-runtime.mjs';
+import {chromium,desktopLaunchOptions,saveDesktopFrame} from './browser-runtime.mjs';
 import {flyTo,flyIntoRoom} from './room-flight-route.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
@@ -29,12 +29,12 @@ try{
    }
   }
   await flyIntoRoom(page);await page.waitForFunction(()=>starhaven.state==='ROOM'&&!starhaven.cameraProgress.transition);round.entered=await snap();assert.equal(round.entered.passage.entries,index+1);assert.equal(round.entered.room.groupUUID,identity.groupUUID);assert.deepEqual(round.entered.room.entities.map(e=>e.uuid),identity.entities.map(e=>e.uuid));
-  round.roomScreenshot=`${out}/round-${index+1}-room.png`;await page.screenshot({path:round.roomScreenshot});
+  round.roomScreenshot=`${out}/round-${index+1}-room.png`;round.capture=await saveDesktopFrame(page,round.roomScreenshot);
   for(const id of route.projects){await page.locator(`#hotspots [data-exhibit="${id}"]`).click();await page.waitForFunction(project=>starhaven.book.status==='open'&&starhaven.currentProject===project,id);await page.locator('#project-back').click();await page.waitForTimeout(900);}
   await page.locator('#exit').click();await page.waitForFunction(()=>starhaven.state==='SPACE'&&!starhaven.cameraProgress.transition);round.exited=await snap();assert.equal(round.exited.passage.exits,index+1);assert.deepEqual(round.exited.keys,[]);
   await page.mouse.move(720,480);await page.keyboard.down('w');await page.waitForTimeout(900);await page.keyboard.up('w');await page.keyboard.down('x');await page.waitForTimeout(500);await page.keyboard.up('x');round.departed=await snap();assert.equal(round.departed.state,'SPACE');assert.equal(round.departed.passage.entries,index+1);assert.ok(round.departed.player[2]>round.exited.player[2]+2);round.status='passed';
   console.log(JSON.stringify({round:index+1,entries:round.departed.passage.entries,exits:round.departed.passage.exits,status:round.status}));
  }
  report.inputs=await page.evaluate(()=>window.__continuousInputs);report.trustedInputs=report.inputs.filter(i=>i.trusted).length;report.untrustedInputs=report.inputs.filter(i=>!i.trusted).length;assert.equal(report.untrustedInputs,0);assert.deepEqual(report.errors,[]);assert.deepEqual(report.requests,[]);report.status='passed';
-}catch(error){report.status='failed';report.failure=error.stack;process.exitCode=1;await page.screenshot({path:`${out}/failure.png`}).catch(()=>{});}
+}catch(error){report.status='failed';report.failure=error.stack;process.exitCode=1;await saveDesktopFrame(page,`${out}/failure.png`).catch(captureError=>{report.failureCaptureError=captureError.message;});}
 finally{await page.keyboard.up('w').catch(()=>{});await page.keyboard.up('x').catch(()=>{});const video=page.video();await context.close();report.video=await video?.path();await browser.close();report.browserClosed=true;report.finished=new Date().toISOString();await writeFile(process.env.CONTINUOUS_REPORT||'tests/v14-rc63-continuous.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({status:report.status,rounds:report.rounds.length,trustedInputs:report.trustedInputs,failure:report.failure}));}
