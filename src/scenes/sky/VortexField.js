@@ -4,7 +4,7 @@ import {makeBrushAtlas,BRUSH_ROWS} from '../../vendor/victor-eu/brushAtlas.js';
 import {makeVortexPaintMaterial} from './VortexPaintMaterial.js';
 import {makePaintedCloudVolume,getPaintedCloudBounds} from './PaintedCloudVolume.js';
 
-/** Closed elliptical swept geometry: continuous broad silhouette, both sides
+/** Closed swept geometry: continuous broad silhouette, both sides
  * and actual depth. The local authoring curve is distinct from the original
  * Starry Night demo, which remains a brush/flow reference, not this model. */
 export function sweptBody(points,profile,{curveSegments,crossSegments},palette) {
@@ -13,6 +13,7 @@ export function sweptBody(points,profile,{curveSegments,crossSegments},palette) 
   const base=new THREE.Color(palette.color),crest=new THREE.Color(palette.crest),shadow=new THREE.Color(palette.shadow),color=new THREE.Color();
   const p=new THREE.Vector3(),q=new THREE.Vector3(),tangent=new THREE.Vector3(),wide=new THREE.Vector3(),deep=new THREE.Vector3();
   const length=curve.getLength(),strokePlane=profile.paintStroke?new THREE.Vector3(...(profile.normal||[0,0,1])):null;
+  const sectionPower=profile.sectionPower??1,sectionRadius=sectionPower<1?Math.pow(2,(1-sectionPower)/2):1,ridgeRadius=profile.paintStroke&&sectionPower!==1?1+(profile.ridgeStrength??.14):1;
   // Opt-in transport for long 3D strokes, seeded by the authored plane.
   // Three's slowly rotating frames avoid a sudden width flip when the path
   // approaches that plane's normal. Other profiles retain their old frame.
@@ -53,10 +54,11 @@ export function sweptBody(points,profile,{curveSegments,crossSegments},palette) 
     const breakup=profile.edgeBreakup??0;
     // Reserve bend clearance for the widest lobe. The centreline/passages
     // stay unchanged while the surface loses its mechanically even outline.
-    const radiusCap=caps[i]/(1+breakup),limit=size=>size/Math.pow(1+Math.pow(size/radiusCap,8),1/8);
+    const radiusCap=caps[i]/((1+breakup)*sectionRadius*ridgeRadius),limit=size=>size/Math.pow(1+Math.pow(size/radiusCap,8),1/8);
     const width=limit((THREE.MathUtils.lerp(profile.width[0],profile.width[1],envelope)*pressure+bulge('width'))*roundedEnd);
     const depthPressure=profile.paintStroke?.98+.025*Math.sin(t*Math.PI*2):.88+.15*Math.sin(t*13.2+.7);
     const depth=limit((THREE.MathUtils.lerp(profile.depth[0],profile.depth[1],envelope)*depthPressure+bulge('depth'))*roundedEnd);
+    const ridgePhase=.5*Math.sin(t*Math.PI)+(profile.ridgeFlow?profile.ridgeFlow*Math.sin(t*9.7+Math.sin(t*3.1)):0);
     for(let j=0;j<=crossSegments;j++){
       const angle=j/crossSegments*Math.PI*2;
       // Broad lobes carry the silhouette; bristle-sized detail belongs in the
@@ -64,8 +66,12 @@ export function sweptBody(points,profile,{curveSegments,crossSegments},palette) 
       // made the side view look like folded paper instead of a thick cloud.
       const lobes=.62*Math.sin(t*21+angle*2+Math.sin(t*7))+.28*Math.sin(t*43-angle*3)+.10*Math.sin(t*67+angle);
       const irregular=profile.paintStroke?1+.018*Math.sin(t*6+angle*2)+breakup*(.7*Math.sin(t*6+angle*2)+.3*Math.sin(t*13-angle*3)):1+.035*Math.sin(t*27+angle*3)+.012*Math.sin(t*47-angle*2)+breakup*lobes;
-      const ridge=profile.paintStroke?1+.14*Math.cos(Math.cos(angle)*Math.PI*3+.5*Math.sin(t*Math.PI)):1;
-      q.copy(p).addScaledVector(wide,Math.cos(angle)*width*irregular).addScaledVector(deep,Math.sin(angle)*depth*irregular*ridge);
+      const ridge=profile.paintStroke?1+(profile.ridgeStrength??.14)*Math.cos(Math.cos(angle)*Math.PI*3+ridgePhase):1;
+      // A loaded paint blade has broad faces and rounded edges. The opt-in
+      // superellipse retains real depth; existing profiles keep their ellipse.
+      const cosine=Math.cos(angle),sine=Math.sin(angle),across=sectionPower===1?cosine:Math.sign(cosine)*Math.pow(Math.abs(cosine),sectionPower),height=sectionPower===1?sine:Math.sign(sine)*Math.pow(Math.abs(sine),sectionPower);
+      // Radial ribs preserve angular order and valid fan caps on a blade.
+      q.copy(p).addScaledVector(wide,across*width*irregular*(sectionPower===1?1:ridge)).addScaledVector(deep,height*depth*irregular*ridge);
       positions.push(q.x,q.y,q.z);uvs.push(t*length,j/crossSegments);
       const highlight=.5+.5*Math.sin(angle+.65+Math.sin(t*8)*.35);
       color.copy(shadow).lerp(base,.65+highlight*.35).lerp(crest,highlight*.24);colors.push(color.r,color.g,color.b);

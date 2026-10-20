@@ -49,12 +49,23 @@ try{
   for(let i=0;i<sweep.renderedVertices;i++){const id=i+sweep.vertexOffset,t=g.attributes.uv.getX(id)/sweep.length,face=Math.sin(g.attributes.uv.getY(id)*Math.PI*2),c=new THREE.Color().fromBufferAttribute(g.attributes.color,id);assert(c.toArray().every(v=>Number.isFinite(v)&&v>=0&&v<=1));if(c.r<=c.b)continue;for(const [j,p]of recipe.sweep.pigment.entries())if(t>p.start&&t<p.end){if(face>.5)footprints[j].front++;if(face<-.5)footprints[j].back++;}}
   assert(footprints.every(p=>p.front>0&&p.back>0));assert.equal(field.telemetry.goldCoats,0);assert.equal(field.material.userData.paintUniforms.oilBrushAtlas.value,vortex.brushAtlas);return {footprints,goldVertices:sweep.goldVertices};
  });
+ check('Main body retains substantial depth rather than a flat paint card',()=>{
+  let minDepth=Infinity,maxDepth=0,minWidth=Infinity,maxWidth=0;
+  for(let row=0;row<=rows;row++){
+   const t=row/rows;if(t<.12||t>.88)continue;
+   const centre=curve.getPointAt(t),wide=point(row*(columns+1)).sub(centre).normalize(),deep=new THREE.Vector3().crossVectors(curve.getTangentAt(t),wide).normalize();
+   let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+   for(let j=0;j<columns;j++){const delta=point(row*(columns+1)+j).sub(centre),x=delta.dot(wide),y=delta.dot(deep);x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);}
+   minDepth=Math.min(minDepth,y1-y0);maxDepth=Math.max(maxDepth,y1-y0);minWidth=Math.min(minWidth,x1-x0);maxWidth=Math.max(maxWidth,x1-x0);
+  }
+  assert(minDepth>1);assert(minWidth>3);return {scope:'Central .12 to .88 of the authored sweep; terminal tips deliberately taper',minDepth,maxDepth,minWidth,maxWidth};
+ });
  const checkpoint=await readFile(process.env.PAINT_SWEEP_CHECKPOINT||'.baseline/v34-s-before.json','utf8').then(JSON.parse).catch(e=>{if(e.code==='ENOENT')return null;throw e;});
  if(checkpoint){
   const file=checkpoint.files['src/scenes/sky/VortexField.js'];assert.equal(createHash('sha256').update(file.text).digest('hex'),file.sha256);
   await build({stdin:{contents:file.text,resolveDir:path.resolve('src/scenes/sky')},bundle:true,platform:'node',format:'esm',packages:'external',outfile:temporary,logLevel:'silent'});
   const {VortexField:Before}=await import(pathToFileURL(temporary));oldVortex=new Before({scene});
-  check('Opt-in frame leaves every existing vortex authoring mesh byte-identical to RC78',()=>{assert.equal(vortex.bands.length,oldVortex.bands.length);for(const [i,band]of vortex.bands.entries()){const g=band.authoringGeometry,old=oldVortex.bands[i].authoringGeometry;assert.deepEqual(g.index.array,old.index.array);for(const key of Object.keys(g.attributes))assert.deepEqual(g.attributes[key].array,old.attributes[key].array,key);}return {bands:vortex.bands.length};});
+  check('Existing vortex authoring meshes remain byte-identical to RC78',()=>{assert.equal(vortex.bands.length,oldVortex.bands.length);for(const [i,band]of vortex.bands.entries()){const g=band.authoringGeometry,old=oldVortex.bands[i].authoringGeometry;assert.deepEqual(g.index.array,old.index.array);for(const key of Object.keys(g.attributes))assert.deepEqual(g.attributes[key].array,old.attributes[key].array,key);}return {bands:vortex.bands.length};});
  }else report.checks.push({name:'Optional RC78 vortex byte comparison',skipped:true,reason:'Local recovery record absent; current sweep geometry is still tested'});
  report.status='passed';
 }catch(e){report.status='failed';report.failure=e.stack;process.exitCode=1;}
