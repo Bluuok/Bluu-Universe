@@ -60,6 +60,14 @@ cf0fc07的常规天空与作品集CI通过；Game mouse-look regression（394335
 
 一次[OpenGL环境探测39593683659](https://github.com/Bluuok/Bluu-Universe/actions/runs/39593683659)（4bb43c2）仅在远端使用[ANGLE官方后端选择](https://github.com/google/angle/blob/main/doc/DebuggingTips.md)与[Mesa软件渲染环境变量](https://docs.mesa3d.org/envvars.html)，保持同一构建及1440×960画质，不禁用watchdog或sandbox。实际报Error creating WebGL context，就绪120秒失败，0张截图／0轮；报告已按SHA取回至.baseline/v45-probe/run-39593683659/，不再尝试更多后端。4bb43c2的controller／portfolio-smoke／sky-smoke常规CI通过，不能抵消这次探测或完整路线失败。
 
-自行复核后，两个路线脚本改为复用departAfterExit：实际按住W直到观测到向外超过2单位，再按X并核对速度低于.15，要求仍处SPACE且入屋次数不增加；不写角色、相机或场景坐标。只完成三个相关脚本的语法、diff与64入口Windows拦截检查，未再次启动远端完整浏览器，不宣称修改已实机通过。综述tests/v45-review.json记录原始结果与该修正的验证边界。
+自行复核后，两个路线脚本改为复用departAfterExit：实际按住W直到观测到向外超过2单位，再按X并核对速度低于.15，要求仍处SPACE且入屋次数不增加；不写角色、相机或场景坐标。只完成三个相关脚本的语法、diff与64入口Windows拦截检查，未复跑远端完整路线，不宣称修改已实机通过。综述tests/v45-review.json记录原始结果与该修正的验证边界。
 
 本轮由主代理验收，未调用反重力或独立评审。完整三轮、截图显示同步、全部最差视角与美术、Windows GPU／真实系统失焦仍未通过或未验证；在现有环境下停止继续重复整批尝试，目标未完成。业务源码、资源、JS／CSS与RC82保持一致，本机浏览器、Linux／Docker均未启动，线上未部署。
+
+### 同日补充：定点任务成功，原始画面尚未取回
+
+针对项目册截图与状态不符，复用原远端probe工作流增加ui-surface定点模式；没有再次尝试OpenGL后端或三条完整路线。它保持原SwiftShader、1440×960画质及业务源码，用真实鼠标打开目录／ThreadCove，分别采集等待两个后续rAF前后画面；返回后实际按住W至观测位移超过2单位，再按X等速度低于.15。截图同时附带前后状态，等待帧本身不等于GPU显示同步，必须继续亲看图片。
+
+[39598316494](https://github.com/Bluuok/Bluu-Universe/actions/runs/39598316494)，job119216097242，提交d981c8719e0dffda67c9ccb551dfd010cf601d8b，任务返回success；该提交controller／portfolio-smoke／sky-smoke亦为success。归档12344434203大小4420372字节，API读取时未过期，SHA256为343f8d8ae52280cdf71fea2c59093372eb3ec1a13e39cb6175ea7ec96a73faa7，计划2026-10-22T12:21:46Z过期。此处digest是远端归档元数据，未下载复算。
+
+取证三次失败：普通整批日志首次HTTP/2 stream CANCEL，第二次90秒超时，曾成功的单任务日志通道也90秒超时；均只读取既有结果，没有重跑浏览器。原始PNG／JSON本轮未取回，未亲看该任务新画面，不能凭退出码或源代码断言项目册视觉、显示同步或真实游玩效果已通过，也不能从缺少取证推断业务失败。停止继续重复下载；保留任务、归档ID和tests/v46-review.json。整体结论仍未通过，先取回这批画面再决定是否调整公共截图函数或重跑连续路线，不以新增测试设施替代业务美术验收。
