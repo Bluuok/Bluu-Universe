@@ -64,7 +64,7 @@ try {
     ];
     const sourceFile = 'src/config/PaintFlowManifest.js', original = await readFile(sourceFile, 'utf8');
     const before = 'surface:{strokeStrength:.24,relief:.0018,paintScale:.30,globalUV:true}',
-      after = 'surface:{strokeStrength:.50,relief:.0035,paintScale:.30,globalUV:true}';
+      after = 'surface:{strokeStrength:.36,relief:.0018,paintScale:.16,globalUV:true}';
     assert.equal(original.split(before).length, 2, 'Expected one frozen RC82 surface profile');
     const candidate = original.replace(before, after), digest = text => createHash('sha256').update(text).digest('hex');
     report.surfacePatch = { file: sourceFile, before, after, baselineSourceSHA256: digest(original), candidateSourceSHA256: digest(candidate) };
