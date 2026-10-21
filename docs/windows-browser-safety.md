@@ -103,3 +103,15 @@ cf0fc07的常规天空与作品集CI通过；Game mouse-look regression（394335
 只补一次[39641607280](https://github.com/Bluuok/Bluu-Universe/actions/runs/39641607280)，同一目标、半径、120秒和完整画质，仍失败：最终差1.948634、速度0；53可信／0非可信、24份rAF时间样本，多次帧间隔约2–7秒，另有28.65秒长间隔；页面异常0，截图0。两次报告均已取回核对双构建SHA，不据退出码或CPU通过宣称实际到点／美术通过。综述tests/v48-review.json；原始证据在.baseline/v47-continuous/run-任务ID-job-任务编号/，目标位置审计在.baseline/v48-arrival/prior-arrival-audit.json。
 
 本轮停止重复该短测，不增加等待上限、不扩大到点范围、不降低画质、不改业务时间或状态，也未重跑三轮。测试误判检查已补，持续低帧率下的精确操控仍未验证通过；在可用的安全浏览器渲染环境到位前，不能可靠继续精确窗／近物碰撞和材质对比终审。Windows启动限制不因远端失败而解除；无新业务模型、素材、手机功能、后端或部署，反重力与独立评审未调用。
+
+### 同日材质迭代：RC83只通过定点辅助对比
+
+沿用标准远端Linux、1440×960和全画质，新增paint-surface诊断模式。它正常加载页面，使用显式调试相机，角色保持出生位置和SPACE状态；临时改CI工作区的材质配置、构建候选、正常重载比较，结束后恢复原文。0轮真实游玩，不能冒充键鼠操作、身体／相机碰撞或连续进出通过。
+
+首次[39643945306](https://github.com/Bluuok/Bluu-Universe/actions/runs/39643945306)虽然success且取得四张图，但逐图发现近景仍显示初始房屋、远景没有足够材质覆盖，拒绝作为有效A/B。随后[39646034520](https://github.com/Bluuok/Bluu-Universe/actions/runs/39646034520)改为S曲线t=.22的正反近景，两个中心射线先由实际扫掠网格校核，距表面13.9275／13.8234；新增仅诊断启用的[WebGL finish](https://registry.khronos.org/webgl/specs/latest/1.0/#5.14.11)及后续任务等待，再从X11取原始桌面PNG。实际图像已显示实体；取景和等待同时改变，不能断言由finish单独解决显示滞后，也不代表出门提示同步问题已修复。更强的strokeStrength=.50／relief=.0035候选让矩形刷痕变得机械，正反面均拒绝采用。
+
+据实际图像改为保留relief=.0018，只调strokeStrength=.36、paintScale=.16。[39647659933](https://github.com/Bluuok/Bluu-Universe/actions/runs/39647659933)取得相同正反视角的四张原图，逐图自审后采用较连贯的长刷痕；块状底纹仍可见，未称整体美术达标。三任务共12张PNG均已按大小／SHA取回并亲看，原始报告和图分别在.baseline/v47-continuous/run-任务ID-job-任务编号/。RC83视觉证据仅限最后任务的两张candidate PNG，其他图属于原版、废弃候选或无效采集，不混算。
+
+正式业务只改PaintFlowManifest的两个数值，与RC82配置逐项隔离比较其余完全一致；原图集、实体／颜料／UV／动画／角色／房屋／相机和碰撞代码均保留。两种实际渲染仍102804面／2绘制、页面异常0、临时源码恢复成功。RC83 JS index-DPuUhqkV.js／SHA256 8f016855f2be155bd9ae002b3900acfbe74b707ff7980c0dadcc29bc085f832f；CSS index-B6xKz6MJ.css／ae31713306657d071a6d78d500f97f2eb19bec83451ff351df6bf3e3443c2feb。首次受限进程构建在生成目录报ENOENT，未修改素材或构建插件，原有CPU构建流程在外层执行成功；不由重跑锁定根因。本地构建和4259预览HTTP双SHA均与已看候选一致。
+
+tests/v49-review.json分别记录无效采集、拒绝候选和采用候选；RC82仅保留三个旧编译入口作必要恢复记录，无重复源码或模型。诊断模式适配了采用后的基线重建／原文恢复分支，此分支本轮仅语法验证，不冒充再次浏览器通过。Windows拦截64入口检查通过，没有启动本机浏览器／Linux／Docker、没有反重力或独立评审、没有部署。RC83完整三轮、真实输入／故障／碰撞、最差视角和跨GPU仍未通过或未验证，整体目标保持未完成。

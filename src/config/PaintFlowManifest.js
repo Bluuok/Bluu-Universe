@@ -3,7 +3,7 @@ export const PaintFlowManifest = {
   budget:{strokes:240,triangles:115000,drawCalls:3},
   geometry:{curveSegments:10,crossSegments:14},
   layerDepth:1.3,
-  surface:{strokeStrength:.24,relief:.0018,paintScale:.30,globalUV:true},
+  surface:{strokeStrength:.36,relief:.0018,paintScale:.16,globalUV:true},
   blend:{resolution:96,smoothness:.22,profile:{width:1.18,depth:.65,axial:1.70,exponent:3.4},pigment:{width:1.25,strength:.94,smoothing:2}},
   motion:{amplitude:.18,rate:.22},
   clearance:4.5,

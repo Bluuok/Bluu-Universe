@@ -13,6 +13,8 @@ assert.equal(process.env.GITHUB_ACTIONS, 'true');
 assert.equal(process.env.LIBGL_ALWAYS_SOFTWARE, 'true');
 const check = process.env.REMOTE_RENDER_CHECK || 'opengl';
 assert(['opengl', 'ui-surface', 'arrival', 'paint-surface'].includes(check));
+const paintSurfaceBefore = 'surface:{strokeStrength:.24,relief:.0018,paintScale:.30,globalUV:true}',
+  paintSurfaceAfter = 'surface:{strokeStrength:.36,relief:.0018,paintScale:.16,globalUV:true}';
 const root = `screenshots/remote-desktop/render-probe/${check}`;
 await mkdir(root, { recursive: true });
 const report = { started: new Date().toISOString(), commit: process.env.GITHUB_SHA,
@@ -22,6 +24,17 @@ const report = { started: new Date().toISOString(), commit: process.env.GITHUB_S
   windowsBrowserStarted: false, completedRounds: 0, errors: [], captures: [] };
 let server, browser, page, observe, restoreSource;
 try {
+  // Recreate the same baseline when this diagnostic is run after adoption.
+  // Only the disposable CI checkout changes; restore its original text below.
+  if (check === 'paint-surface') {
+    const file = 'src/config/PaintFlowManifest.js', text = await readFile(file, 'utf8');
+    if (text.includes(paintSurfaceAfter)) {
+      assert.equal(text.split(paintSurfaceAfter).length, 2);
+      restoreSource = { file, text };
+      await writeFile(file, text.replace(paintSurfaceAfter, paintSurfaceBefore));
+      await build();
+    }
+  }
   server = await preview({ preview: { host: '127.0.0.1', port: 4259, strictPort: true } });
   // Documented ANGLE backend selection; do not disable the watchdog or sandbox.
   // https://github.com/google/angle/blob/main/doc/DebuggingTips.md
@@ -62,12 +75,12 @@ try {
       { name: 's-pigment-front', position: centre.clone().add(new Vector3(0, 0, 15)).toArray(), target: centre.toArray() },
       { name: 's-pigment-back', position: centre.clone().add(new Vector3(0, 0, -15)).toArray(), target: centre.toArray() },
     ];
-    const sourceFile = 'src/config/PaintFlowManifest.js', original = await readFile(sourceFile, 'utf8');
-    const before = 'surface:{strokeStrength:.24,relief:.0018,paintScale:.30,globalUV:true}',
-      after = 'surface:{strokeStrength:.36,relief:.0018,paintScale:.16,globalUV:true}';
-    assert.equal(original.split(before).length, 2, 'Expected one frozen RC82 surface profile');
-    const candidate = original.replace(before, after), digest = text => createHash('sha256').update(text).digest('hex');
-    report.surfacePatch = { file: sourceFile, before, after, baselineSourceSHA256: digest(original), candidateSourceSHA256: digest(candidate) };
+    const sourceFile = 'src/config/PaintFlowManifest.js', baseline = await readFile(sourceFile, 'utf8'),
+      original = restoreSource?.text ?? baseline, before = paintSurfaceBefore, after = paintSurfaceAfter;
+    assert.equal(baseline.split(before).length, 2, 'Expected one baseline surface profile');
+    const candidate = baseline.replace(before, after), digest = text => createHash('sha256').update(text).digest('hex');
+    report.surfacePatch = { file: sourceFile, before, after, originalSourceSHA256: digest(original),
+      baselineSourceSHA256: digest(baseline), candidateSourceSHA256: digest(candidate) };
     report.variants = [];
     for (const variant of ['baseline', 'candidate']) {
       if (variant === 'candidate') {
