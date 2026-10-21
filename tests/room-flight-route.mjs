@@ -13,7 +13,20 @@ export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false
       if(enter&&s.state!=='SPACE'){await keys([]);await center();if(!stopOnCross)await page.waitForFunction(()=>starhaven.state==='ROOM'&&!starhaven.cameraProgress.transition,{},{timeout:Math.max(15000,timeout)});return;}
       if(s.state!=='SPACE')throw Error('Flight route left SPACE unexpectedly: '+s.state);
       const d=target.map((v,i)=>v-s.p[i]),distance=Math.hypot(...d),speed=Math.hypot(...s.v);
-      if(!enter&&distance<radius){await center();await keys([s.f.inputMode==='relative-mouse'?'x':'s']);await page.waitForTimeout(450);await keys([]);console.log(JSON.stringify({waypoint:target,at:await page.evaluate(()=>starhaven.player)}));return;}
+      if(!enter&&distance<radius){
+        await center();await keys([s.f.inputMode==='relative-mouse'?'x':'s']);
+        // Hold through an actual simulation frame. A fixed short tap can be
+        // released between software-rendered frames and leave the pilot moving.
+        await page.waitForFunction(()=>starhaven.state!=='SPACE'||Math.hypot(...starhaven.velocity)<.15,null,
+          {timeout:Math.max(1,timeout-(Date.now()-started))});
+        await keys([]);
+        const stopped=await page.evaluate(()=>({state:starhaven.state,p:starhaven.player}));
+        if(stopped.state!=='SPACE')throw Error('Braking left SPACE unexpectedly: '+stopped.state);
+        // Crossing the radius before braking is not arrival. Correct any real
+        // inertial overshoot using the same keyboard/mouse feedback loop.
+        if(Math.hypot(...target.map((v,i)=>v-stopped.p[i]))>=radius)continue;
+        console.log(JSON.stringify({waypoint:target,at:stopped.p}));return;
+      }
       // Optional slow-feedback QA route: stop before reading/turning near a
       // target, then issue a bounded real key pulse. No game state is written.
       if(pulseNear&&s.f.inputMode==='relative-mouse'&&distance<12){

@@ -6,12 +6,13 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import assert from 'node:assert/strict';
+import { flyTo } from './room-flight-route.mjs';
 
 assert.equal(process.platform, 'linux');
 assert.equal(process.env.GITHUB_ACTIONS, 'true');
 assert.equal(process.env.LIBGL_ALWAYS_SOFTWARE, 'true');
 const check = process.env.REMOTE_RENDER_CHECK || 'opengl';
-assert(['opengl', 'ui-surface'].includes(check));
+assert(['opengl', 'ui-surface', 'arrival'].includes(check));
 const root = `screenshots/remote-desktop/render-probe/${check}`;
 await mkdir(root, { recursive: true });
 const report = { started: new Date().toISOString(), commit: process.env.GITHUB_SHA,
@@ -22,7 +23,7 @@ try {
   server = await preview({ preview: { host: '127.0.0.1', port: 4259, strictPort: true } });
   // Documented ANGLE backend selection; do not disable the watchdog or sandbox.
   // https://github.com/google/angle/blob/main/doc/DebuggingTips.md
-  report.launchOptions = check === 'ui-surface' ? desktopLaunchOptions : { headless: false, args: ['--enable-webgl', '--use-gl=angle',
+  report.launchOptions = check !== 'opengl' ? desktopLaunchOptions : { headless: false, args: ['--enable-webgl', '--use-gl=angle',
     '--use-cmd-decoder=passthrough', '--use-angle=gl',
     '--disable-background-timer-throttling', '--disable-renderer-backgrounding'] };
   browser = await chromium.launch(report.launchOptions);
@@ -39,16 +40,28 @@ try {
   report.build = await runtimeBuildIdentity(page);
   await page.waitForFunction(() => window.starhaven?.ready, null, { timeout: 120000 });
   await page.bringToFront();
-  const observe = () => page.evaluate(() => ({ player: starhaven.player, state: starhaven.state,
+  const observe = () => page.evaluate(() => ({ player: starhaven.player, velocity: starhaven.velocity, state: starhaven.state,
     book: starhaven.book, passage: starhaven.passage, cameraProgress: starhaven.cameraProgress,
     panel: { hidden: document.getElementById('project-panel').hidden,
       opacity: getComputedStyle(document.getElementById('project-panel')).opacity },
     rendering: starhaven.rendering, flight: starhaven.flight, samples: window.__probeFrames,
     inputs: window.__probeInputs }));
   report.before = await observe();
-  const frame = async name => { const file = `${root}/${name}.png`, before = await observe();
-    report.captures.push({ file, before, capture: await saveDesktopFrame(page, file), after: await observe() }); };
-  if (check === 'ui-surface') {
+  const frame = async (name, options) => { const file = `${root}/${name}.png`, before = await observe();
+    report.captures.push({ file, before, capture: await saveDesktopFrame(page, file, options), after: await observe() }); };
+  if (check === 'arrival') {
+    await page.locator('#loading').waitFor({ state: 'hidden', timeout: 30000 });
+    report.arrivalTarget = [-3, 3, 10]; report.arrivalRadius = 1;
+    await flyTo(page, report.arrivalTarget, { radius: report.arrivalRadius, timeout: 120000 });
+    report.after = await observe();
+    report.arrivalDistance = Math.hypot(...report.after.player.map((value, i) => value - report.arrivalTarget[i]));
+    assert.equal(report.after.state, 'SPACE');
+    assert(report.arrivalDistance < report.arrivalRadius);
+    assert(Math.hypot(...report.after.velocity) < .15);
+    assert.deepEqual(report.errors, []);
+    assert(report.after.inputs.length > 0 && report.after.inputs.every(event => event.trusted));
+    await frame('arrived-and-braked', { settle: true });
+  } else if (check === 'ui-surface') {
     await page.locator('#loading').waitFor({ state: 'hidden', timeout: 30000 });
     await page.locator('#project-toggle').click();
     await page.locator('#catalog [data-project-id="threadcove"]').click();
