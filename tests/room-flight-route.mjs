@@ -57,6 +57,28 @@ export async function flyIntoRoom(page,options={}){
   await flyTo(page,[1.35,1.15,6.2],{...options,enter:true});
 }
 
+// A short key tap can fall entirely between software-rendered frames. Keep
+// real W held until observed outward travel, then verify actual braking.
+export async function departAfterExit(page,{distance=2,timeout=30000}={}){
+  const read=()=>page.evaluate(()=>({state:starhaven.state,player:starhaven.player,
+    velocity:starhaven.velocity,passage:starhaven.passage}));
+  const before=await read();
+  if(before.state!=='SPACE')throw Error('Departure must start outside');
+  const viewport=page.viewportSize();await page.mouse.move(viewport.width/2,viewport.height/2);
+  await page.keyboard.down('w');
+  try{await page.waitForFunction(({z,distance,entries})=>starhaven.state!=='SPACE'||
+    starhaven.passage.entries!==entries||starhaven.player[2]>z+distance,
+    {z:before.player[2],distance,entries:before.passage.entries},{timeout});}
+  finally{await page.keyboard.up('w').catch(()=>{});}
+  await page.keyboard.down('x');
+  try{await page.waitForFunction(()=>Math.hypot(...starhaven.velocity)<.15,null,{timeout});}
+  finally{await page.keyboard.up('x').catch(()=>{});}
+  const after=await read();
+  if(after.state!=='SPACE'||after.passage.entries!==before.passage.entries||after.player[2]<=before.player[2]+distance)
+    throw Error('Outward departure was not completed: '+JSON.stringify({before,after,distance}));
+  return {before,after,distance};
+}
+
 // Relative look via the actual RMB fallback. Mouse recentering occurs only
 // with the button released, so it never changes the pilot's heading.
 export async function lookBy(page,dx,dy){

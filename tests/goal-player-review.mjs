@@ -1,6 +1,6 @@
 import {runtimeBuildIdentity} from './runtime-build-identity.mjs';
 import {chromium,desktopLaunchOptions,saveDesktopFrame} from './browser-runtime.mjs';
-import {flyTo,flyIntoRoom,faceHeading} from './room-flight-route.mjs';
+import {flyTo,flyIntoRoom,faceHeading,departAfterExit} from './room-flight-route.mjs';
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import path from 'node:path';
@@ -47,7 +47,7 @@ async function room(projects){
   for(const id of projects){await page.locator(`#hotspots [data-exhibit="${id}"]`).click();await page.waitForFunction(project=>starhaven.book.status==='open'&&starhaven.currentProject===project,id,{timeout:contactTimeout});assert.equal((await observe()).project,id);await shot('project-'+id);await page.locator('#project-back').click();await page.waitForFunction(()=>starhaven.state==='ROOM'&&!starhaven.cameraProgress.transition,null,{timeout:contactTimeout});assert.equal((await observe()).state,'ROOM');}
   current.roomAfter=(await observe()).room;
   await page.locator('#exit').click();await page.waitForFunction(()=>starhaven.state==='SPACE'&&!starhaven.cameraProgress.transition,null,{timeout:contactTimeout});await page.mouse.move(720,480);await page.waitForTimeout(400);await shot('exit');
-  await page.keyboard.down('w');await page.waitForTimeout(500);await page.keyboard.up('w');await page.keyboard.down('x');await page.waitForTimeout(500);await page.keyboard.up('x');assert.equal((await observe()).state,'SPACE');await shot('outward-departure');
+  current.departure=await departAfterExit(page,{timeout:contactTimeout});assert.equal((await observe()).state,'SPACE');await shot('outward-departure');
 }
 try{
   for(let id=1;id<=3;id++){

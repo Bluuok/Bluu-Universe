@@ -1,6 +1,6 @@
 import {runtimeBuildIdentity} from './runtime-build-identity.mjs';
 import {chromium,desktopLaunchOptions,saveDesktopFrame} from './browser-runtime.mjs';
-import {flyTo,flyIntoRoom} from './room-flight-route.mjs';
+import {flyTo,flyIntoRoom,departAfterExit} from './room-flight-route.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const out=process.env.CONTINUOUS_OUT||'screenshots/v14-rc63-continuous';await mkdir(out,{recursive:true});
@@ -33,7 +33,7 @@ try{
   round.roomScreenshot=`${out}/round-${index+1}-room.png`;round.capture=await saveDesktopFrame(page,round.roomScreenshot);
   for(const id of route.projects){await page.locator(`#hotspots [data-exhibit="${id}"]`).click();await page.waitForFunction(project=>starhaven.book.status==='open'&&starhaven.currentProject===project,id,{timeout:transitionTimeout});await page.locator('#project-back').click();await page.waitForFunction(()=>starhaven.state==='ROOM'&&!starhaven.cameraProgress.transition,null,{timeout:transitionTimeout});}
   await page.locator('#exit').click();await page.waitForFunction(()=>starhaven.state==='SPACE'&&!starhaven.cameraProgress.transition,null,{timeout:transitionTimeout});round.exited=await snap();assert.equal(round.exited.passage.exits,index+1);assert.deepEqual(round.exited.keys,[]);
-  await page.mouse.move(720,480);await page.keyboard.down('w');await page.waitForTimeout(900);await page.keyboard.up('w');await page.keyboard.down('x');await page.waitForTimeout(500);await page.keyboard.up('x');round.departed=await snap();assert.equal(round.departed.state,'SPACE');assert.equal(round.departed.passage.entries,index+1);assert.ok(round.departed.player[2]>round.exited.player[2]+2);round.status='passed';
+  round.departure=await departAfterExit(page,{timeout:transitionTimeout});round.departed=await snap();assert.equal(round.departed.state,'SPACE');assert.equal(round.departed.passage.entries,index+1);assert.ok(round.departed.player[2]>round.exited.player[2]+2);round.status='passed';
   console.log(JSON.stringify({round:index+1,entries:round.departed.passage.entries,exits:round.departed.passage.exits,status:round.status}));
   console.log(`::notice title=Continuous visit::Round ${index+1} passed; entries=${round.departed.passage.entries}, exits=${round.departed.passage.exits}`);
  }
