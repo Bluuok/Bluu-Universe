@@ -26,6 +26,8 @@ jobs:
       - run: npm run build
       - name: Install matched Linux Chromium
         run: npx playwright install --with-deps chromium
+      - name: Install remote X11 capture tools
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Serial real-input routes (stop on first failure)
         run: xvfb-run -a -s "-screen 0 1600x1100x24" node tests/remote-desktop-review.mjs
       - name: Preserve screenshots, videos and reports, including failures

@@ -23,25 +23,22 @@ export const desktopLaunchOptions = {
     '--disable-renderer-backgrounding'],
 };
 
-// The remote SwiftShader run reached ready=true, but Playwright's surface
-// screenshot timed out. Capture the actual headed view through CDP instead;
-// never pause animation, alter render quality, or substitute a DOM mock.
+// Capture the remote X11 framebuffer independently of Chromium's screenshot
+// and screencast APIs. Keep the entire desktop as evidence of the real window;
+// do not pause animation, crop away failures, or change application quality.
 export async function saveDesktopFrame(page, file) {
   if (process.platform !== 'linux' || process.env.GITHUB_ACTIONS !== 'true')
     throw new Error('Desktop view capture is restricted to the remote Linux job');
-  const session = await page.context().newCDPSession(page);
-  let timer;
-  try {
-    const result = await Promise.race([
-      session.send('Page.captureScreenshot', { format: 'png', fromSurface: false, captureBeyondViewport: false }),
-      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Remote view capture exceeded 10 seconds')), 10000); }),
-    ]);
-    const bytes = Buffer.from(result.data, 'base64'), viewport = page.viewportSize();
-    if (bytes.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') throw new Error('Remote frame is not a PNG');
-    const width = bytes.readUInt32BE(16), height = bytes.readUInt32BE(20);
-    if (width !== viewport.width || height !== viewport.height)
-      throw new Error(`Remote frame was clipped: ${width}x${height}, expected ${viewport.width}x${viewport.height}`);
-    const { writeFile } = await import('node:fs/promises'); await writeFile(file, bytes);
-    return { method: 'CDP.Page.captureScreenshot fromSurface=false', width, height };
-  } finally { clearTimeout(timer); await session.detach(); }
+  if (!/^:\d+(\.\d+)?$/.test(process.env.DISPLAY || '')) throw new Error('Expected a local X11 display');
+  const { execFile } = await import('node:child_process'), { promisify } = await import('node:util');
+  await promisify(execFile)('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y',
+    '-f', 'x11grab', '-video_size', '1600x1100', '-framerate', '1', '-i', process.env.DISPLAY,
+    '-frames:v', '1', '-threads', '1', '-update', '1', file], { timeout: 10000 });
+  const { readFile } = await import('node:fs/promises'), bytes = await readFile(file);
+  if (bytes.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') throw new Error('Remote frame is not a PNG');
+  const width = bytes.readUInt32BE(16), height = bytes.readUInt32BE(20);
+  if (width !== 1600 || height !== 1100) throw new Error(`Unexpected desktop frame: ${width}x${height}`);
+  const window = await page.evaluate(() => ({ x: screenX, y: screenY, outerWidth, outerHeight,
+    innerWidth, innerHeight, screenWidth: screen.width, screenHeight: screen.height, focused: document.hasFocus() }));
+  return { method: 'FFmpeg x11grab whole remote desktop', width, height, viewport: page.viewportSize(), window };
 }

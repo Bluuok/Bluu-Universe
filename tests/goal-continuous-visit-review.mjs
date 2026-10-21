@@ -6,14 +6,14 @@ import assert from 'node:assert/strict';
 const out=process.env.CONTINUOUS_OUT||'screenshots/v14-rc63-continuous';await mkdir(out,{recursive:true});
 const report={started:new Date().toISOString(),method:'One normal load, one page, three consecutive real flight/entry/project/exit routes. No reload, Home, or pose/state/camera writes. Trusted mouse/keyboard and passive telemetry.',environment:{platform:process.platform,executable:chromium.executablePath(),launchOptions:desktopLaunchOptions},rounds:[],errors:[],requests:[]};
 const browser=await chromium.launch(desktopLaunchOptions);
-const context=await browser.newContext({viewport:{width:1440,height:960},recordVideo:{dir:out,size:{width:1440,height:960}}}),page=await context.newPage();
+const context=await browser.newContext({viewport:{width:1440,height:960}}),page=await context.newPage();
 await page.addInitScript(()=>{window.__continuousInputs=[];for(const type of ['keydown','keyup','pointermove','click'])window.addEventListener(type,e=>window.__continuousInputs.push({type,code:e.code,trusted:e.isTrusted}),true);});
 page.on('pageerror',e=>report.errors.push(e.message));page.on('requestfailed',r=>report.requests.push({url:r.url(),reason:r.failure()?.errorText}));
 const snap=()=>page.evaluate(()=>({state:starhaven.state,passage:starhaven.passage,player:starhaven.player,keys:starhaven.keys,room:starhaven.inspect.roomEntities()}));
 try{
  await page.goto(process.env.GOAL_URL||'http://127.0.0.1:4259/');
  report.build=await runtimeBuildIdentity(page);
- await page.waitForFunction(()=>window.starhaven?.ready,null,{timeout:120000});await page.locator('#loading').waitFor({state:'hidden'});
+ await page.waitForFunction(()=>window.starhaven?.ready,null,{timeout:120000});await page.bringToFront();await page.locator('#loading').waitFor({state:'hidden'});
  const identity=(await snap()).room;
  const routes=[{points:[[-3,3,10]],projects:['threadcove']},{points:[[12,5,15],[12,7,-10],[-10,7,-10],[-10,5,10]],projects:['clawtide']},{points:[[12,-3,12],[-12,10,12],[-2,3,10]],riseAfterFirst:true,projects:['contributions','contact']}];
  for(const [index,route]of routes.entries()){
@@ -37,4 +37,4 @@ try{
  }
  report.inputs=await page.evaluate(()=>window.__continuousInputs);report.trustedInputs=report.inputs.filter(i=>i.trusted).length;report.untrustedInputs=report.inputs.filter(i=>!i.trusted).length;assert.equal(report.untrustedInputs,0);assert.deepEqual(report.errors,[]);assert.deepEqual(report.requests,[]);report.status='passed';
 }catch(error){report.status='failed';report.failure=error.stack;process.exitCode=1;await saveDesktopFrame(page,`${out}/failure.png`).catch(captureError=>{report.failureCaptureError=captureError.message;});}
-finally{await page.keyboard.up('w').catch(()=>{});await page.keyboard.up('x').catch(()=>{});const video=page.video();await context.close();report.video=await video?.path();await browser.close();report.browserClosed=true;report.finished=new Date().toISOString();await writeFile(process.env.CONTINUOUS_REPORT||'tests/v14-rc63-continuous.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({status:report.status,rounds:report.rounds.length,trustedInputs:report.trustedInputs,failure:report.failure}));}
+finally{await page.keyboard.up('w').catch(()=>{});await page.keyboard.up('x').catch(()=>{});await context.close();report.video=process.env.REMOTE_SCREEN_RECORDING||null;await browser.close();report.browserClosed=true;report.finished=new Date().toISOString();await writeFile(process.env.CONTINUOUS_REPORT||'tests/v14-rc63-continuous.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({status:report.status,rounds:report.rounds.length,trustedInputs:report.trustedInputs,failure:report.failure}));}

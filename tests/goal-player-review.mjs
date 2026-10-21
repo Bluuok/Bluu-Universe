@@ -9,7 +9,7 @@ const url=process.env.GOAL_URL||'http://127.0.0.1:4259/',out=process.env.GOAL_OU
 const file=process.env.GOAL_REPORT||'tests/v13-player-review.json';
 await mkdir(out,{recursive:true});
 const browser=await chromium.launch(desktopLaunchOptions);
-const context=await browser.newContext({viewport:{width:1440,height:960},recordVideo:{dir:path.join(out,'video'),size:{width:1440,height:960}}});
+const context=await browser.newContext({viewport:{width:1440,height:960}});
 await context.addInitScript(()=>{window.__goalInputs=[];window.__goalSamples=[];let previous=0;
   for(const type of ['keydown','keyup','pointermove','pointerdown','pointerup','click','blur','focus'])window.addEventListener(type,e=>window.__goalInputs.push({type,code:e.code,trusted:e.isTrusted,x:e.clientX,y:e.clientY,time:performance.now()}),true);
   function sample(now){const a=window.starhaven;if(a?.ready&&now-previous>120){previous=now;window.__goalSamples.push({time:now,state:a.state,player:a.player,keys:a.keys,camera:a.camera,avoidance:a.framing?.avoidance,contacts:a.inspect.collision().lastSolve?.contacts});}requestAnimationFrame(sample);}requestAnimationFrame(sample);
@@ -18,7 +18,7 @@ const report={startedAt:new Date().toISOString(),method:'Three normal-reload rou
 let page,current;
 const observe=()=>page.evaluate(()=>({state:starhaven.state,player:starhaven.player,velocity:starhaven.velocity,flight:starhaven.flight,camera:starhaven.camera,framing:starhaven.framing,room:starhaven.inspect.roomEntities(),collision:starhaven.inspect.collision(),rendering:starhaven.rendering,project:starhaven.currentProject}));
 async function save(){await writeFile(file,JSON.stringify(report,null,2)+'\n');}
-async function shot(name){const p=path.join(out,`route-${current.id}-${name}.png`);const capture=await saveDesktopFrame(page,p);const observation=await observe();current.steps.push({name,screenshot:p,capture,observation});await save();console.log(JSON.stringify({route:current.id,step:name,state:observation.state,player:observation.player}));}
+async function shot(name){const p=path.join(out,`route-${current.id}-${name}.png`);const capture=await saveDesktopFrame(page,p);const observation=await observe();current.steps.push({name,screenshot:p,capturedAt:new Date().toISOString(),capture,observation});await save();console.log(JSON.stringify({route:current.id,step:name,state:observation.state,player:observation.player}));}
 async function go(p,name,radius=1.0){await flyTo(page,p,{radius,timeout:60000});await shot(name);}
 const wrap=v=>Math.atan2(Math.sin(v),Math.cos(v));
 async function face(yaw,pitch=0){
@@ -50,11 +50,11 @@ async function room(projects){
 }
 try{
   for(let id=1;id<=3;id++){
-    current={id,status:'running',steps:[],contacts:[]};report.routes.push(current);page=await context.newPage();
+    current={id,status:'running',startedAt:new Date().toISOString(),steps:[],contacts:[]};report.routes.push(current);page=await context.newPage();
     page.on('pageerror',e=>report.runtimeErrors.push({route:id,message:e.message}));page.on('console',m=>{if(m.type()==='error')report.runtimeErrors.push({route:id,message:m.text()});});page.on('requestfailed',r=>report.requestFailures.push({route:id,url:r.url(),error:r.failure()?.errorText}));
     await page.goto(url,{waitUntil:'networkidle'});
     const build=await runtimeBuildIdentity(page);if(report.build)assert.deepEqual(build,report.build);else report.build=build;
-    await page.waitForFunction(()=>window.starhaven?.ready,null,{timeout:120000});await page.mouse.move(720,480);await page.waitForTimeout(800);
+    await page.waitForFunction(()=>window.starhaven?.ready,null,{timeout:120000});await page.bringToFront();await page.mouse.move(720,480);await page.waitForTimeout(800);
     if(!report.renderer)report.renderer=await page.evaluate(()=>{const gl=document.getElementById('world').getContext('webgl2'),ext=gl.getExtension('WEBGL_debug_renderer_info');return{version:gl.getParameter(gl.VERSION),renderer:ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER),vendor:ext?gl.getParameter(ext.UNMASKED_VENDOR_WEBGL):gl.getParameter(gl.VENDOR)};});
     await shot('normal-spawn');
     if(id===1){
@@ -76,7 +76,7 @@ try{
       for(const [p,n] of [[[-12,12,10],'leave-roof'],[[-27,30,12],'upper-cloud'],[[-22,20,-25],'rear-upper-clear'],[[20,-20,-19],'lower-cloud'],[[12,9,-12],'return-east-high'],[[12,9,12],'return-front-high']])await go(p,n);
       await room(['contributions','contact']);
     }
-    current.inputs=await page.evaluate(()=>window.__goalInputs);current.samples=await page.evaluate(()=>window.__goalSamples);assert.ok(current.inputs.every(e=>e.trusted));current.trustedInputs=current.inputs.length;current.status='passed';current.video=await page.video().path();await page.close();await save();
+    current.inputs=await page.evaluate(()=>window.__goalInputs);current.samples=await page.evaluate(()=>window.__goalSamples);assert.ok(current.inputs.every(e=>e.trusted));current.trustedInputs=current.inputs.length;current.status='passed';current.finishedAt=new Date().toISOString();current.video=process.env.REMOTE_SCREEN_RECORDING||null;await page.close();await save();
   }
   assert.equal(report.routes.filter(r=>r.status==='passed').length,3);assert.deepEqual(report.runtimeErrors,[]);report.status=report.requestFailures.length?'completed-with-request-diagnostics':'passed';
 }catch(e){report.status='failed';report.failure={message:e.message,stack:e.stack};if(current)current.status='failed';if(page&&!page.isClosed()){current.inputs=await page.evaluate(()=>window.__goalInputs).catch(()=>[]);current.samples=await page.evaluate(()=>window.__goalSamples).catch(()=>[]);current.failureContext=await page.evaluate(()=>({url:location.href,appPresent:Boolean(window.starhaven),ready:window.starhaven?.ready??false,loading:document.getElementById('loading')?.innerText,resources:performance.getEntriesByType('resource').length})).catch(()=>null);current.failureScreenshot=path.join(out,`route-${current.id}-failure.png`);await saveDesktopFrame(page,current.failureScreenshot).catch(error=>{current.failureCaptureError=error.message;});}process.exitCode=1;}
