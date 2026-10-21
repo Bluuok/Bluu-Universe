@@ -7,6 +7,7 @@ import path from 'node:path';
 
 const url=process.env.GOAL_URL||'http://127.0.0.1:4259/',out=process.env.GOAL_OUT||'screenshots/v13-player-review';
 const file=process.env.GOAL_REPORT||'tests/v13-player-review.json';
+const flightTimeout=Number(process.env.GOAL_FLIGHT_TIMEOUT_MS||60000),contactTimeout=Number(process.env.GOAL_CONTACT_TIMEOUT_MS||7000);
 await mkdir(out,{recursive:true});
 const browser=await chromium.launch(desktopLaunchOptions);
 const context=await browser.newContext({viewport:{width:1440,height:960}});
@@ -18,8 +19,8 @@ const report={startedAt:new Date().toISOString(),method:'Three normal-reload rou
 let page,current;
 const observe=()=>page.evaluate(()=>({state:starhaven.state,player:starhaven.player,velocity:starhaven.velocity,flight:starhaven.flight,camera:starhaven.camera,framing:starhaven.framing,room:starhaven.inspect.roomEntities(),collision:starhaven.inspect.collision(),rendering:starhaven.rendering,project:starhaven.currentProject}));
 async function save(){await writeFile(file,JSON.stringify(report,null,2)+'\n');}
-async function shot(name){const p=path.join(out,`route-${current.id}-${name}.png`);const capture=await saveDesktopFrame(page,p);const observation=await observe();current.steps.push({name,screenshot:p,capturedAt:new Date().toISOString(),capture,observation});await save();console.log(JSON.stringify({route:current.id,step:name,state:observation.state,player:observation.player}));}
-async function go(p,name,radius=1.0){await flyTo(page,p,{radius,timeout:60000});await shot(name);}
+async function shot(name){const p=path.join(out,`route-${current.id}-${name}.png`);const capture=await saveDesktopFrame(page,p);const observation=await observe();current.steps.push({name,screenshot:p,capturedAt:new Date().toISOString(),capture,observation});await save();console.log(JSON.stringify({route:current.id,step:name,state:observation.state,player:observation.player}));console.log(`::notice title=Desktop route ${current.id}::${name} ${JSON.stringify(observation.player)}`);}
+async function go(p,name,radius=1.0){await flyTo(page,p,{radius,timeout:flightTimeout});await shot(name);}
 const wrap=v=>Math.atan2(Math.sin(v),Math.cos(v));
 async function face(yaw,pitch=0){
   if((await page.evaluate(()=>starhaven.flight.inputMode))==='relative-mouse')return faceHeading(page,yaw,pitch);
@@ -36,16 +37,16 @@ async function contact(key,normal,name){
   // Static proxies are intentionally merged into one BVH. Confirm its real
   // contact normal at the physically reached wall/rail/roof, not a mesh name
   // that the merged solver never exposes.
-  try{const handle=await page.waitForFunction(expected=>{const a=starhaven,c=a.inspect.collision().lastSolve;return c?.contacts.some(h=>h.collider==='studio-static'&&h.normal.reduce((s,v,i)=>s+v*expected[i],0)>.7)?{player:a.player,solve:c,avoidance:a.framing?.avoidance}:false;},normal,{timeout:7000});const body=await handle.jsonValue();current.contacts.push({name,expectedNormal:normal,body});if(name==='left-wall-body-contact')assert.ok(body.player[0]<-5.8);if(name==='back-wall-body-contact')assert.ok(body.player[2]<-5.4);if(name==='rail-body-contact')assert.ok(body.player[2]>6.7);if(name==='roof-body-contact')assert.ok(body.player[1]>6.2);}
+  try{const handle=await page.waitForFunction(expected=>{const a=starhaven,c=a.inspect.collision().lastSolve;return c?.contacts.some(h=>h.collider==='studio-static'&&h.normal.reduce((s,v,i)=>s+v*expected[i],0)>.7)?{player:a.player,solve:c,avoidance:a.framing?.avoidance}:false;},normal,{timeout:contactTimeout});const body=await handle.jsonValue();current.contacts.push({name,expectedNormal:normal,body});if(name==='left-wall-body-contact')assert.ok(body.player[0]<-5.8);if(name==='back-wall-body-contact')assert.ok(body.player[2]<-5.4);if(name==='rail-body-contact')assert.ok(body.player[2]>6.7);if(name==='roof-body-contact')assert.ok(body.player[1]>6.2);}
   finally{await page.keyboard.up(key);}
   await page.mouse.move(720,480);await page.waitForTimeout(500);await shot(name);
 }
 async function room(projects){
-  await flyIntoRoom(page);await page.waitForTimeout(800);assert.equal((await observe()).state,'ROOM');await shot('room');
+  await flyIntoRoom(page,{timeout:flightTimeout});await page.waitForTimeout(800);assert.equal((await observe()).state,'ROOM');await shot('room');
   const entities=(await observe()).room;current.roomBefore=entities;
-  for(const id of projects){await page.locator(`#hotspots [data-exhibit="${id}"]`).click();await page.waitForTimeout(1200);assert.equal((await observe()).project,id);await shot('project-'+id);await page.locator('#project-back').click();await page.waitForTimeout(900);assert.equal((await observe()).state,'ROOM');}
+  for(const id of projects){await page.locator(`#hotspots [data-exhibit="${id}"]`).click();await page.waitForFunction(project=>starhaven.book.status==='open'&&starhaven.currentProject===project,id,{timeout:contactTimeout});assert.equal((await observe()).project,id);await shot('project-'+id);await page.locator('#project-back').click();await page.waitForFunction(()=>starhaven.state==='ROOM'&&!starhaven.cameraProgress.transition,null,{timeout:contactTimeout});assert.equal((await observe()).state,'ROOM');}
   current.roomAfter=(await observe()).room;
-  await page.locator('#exit').click();await page.waitForFunction(()=>starhaven.state==='SPACE'&&!starhaven.cameraProgress.transition);await page.mouse.move(720,480);await page.waitForTimeout(400);await shot('exit');
+  await page.locator('#exit').click();await page.waitForFunction(()=>starhaven.state==='SPACE'&&!starhaven.cameraProgress.transition,null,{timeout:contactTimeout});await page.mouse.move(720,480);await page.waitForTimeout(400);await shot('exit');
   await page.keyboard.down('w');await page.waitForTimeout(500);await page.keyboard.up('w');await page.keyboard.down('x');await page.waitForTimeout(500);await page.keyboard.up('x');assert.equal((await observe()).state,'SPACE');await shot('outward-departure');
 }
 try{

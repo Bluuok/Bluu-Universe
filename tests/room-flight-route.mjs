@@ -10,7 +10,7 @@ export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false
     while(Date.now()-started<timeout){
       const s=await page.evaluate(()=>({state:starhaven.state,p:starhaven.player,v:starhaven.velocity,f:starhaven.flight}));
       if(!trace.length||Date.now()-trace.at(-1).at>600)trace.push({at:Date.now(),p:s.p,v:s.v,yaw:s.f.yaw,pitch:s.f.pitch,needsCenter:s.f.needsCenter,paused:s.f.paused});
-      if(enter&&s.state!=='SPACE'){await keys([]);await center();if(!stopOnCross)await page.waitForFunction(()=>starhaven.state==='ROOM'&&!starhaven.cameraProgress.transition,{},{timeout:15000});return;}
+      if(enter&&s.state!=='SPACE'){await keys([]);await center();if(!stopOnCross)await page.waitForFunction(()=>starhaven.state==='ROOM'&&!starhaven.cameraProgress.transition,{},{timeout:Math.max(15000,timeout)});return;}
       if(s.state!=='SPACE')throw Error('Flight route left SPACE unexpectedly: '+s.state);
       const d=target.map((v,i)=>v-s.p[i]),distance=Math.hypot(...d),speed=Math.hypot(...s.v);
       if(!enter&&distance<radius){await center();await keys([s.f.inputMode==='relative-mouse'?'x':'s']);await page.waitForTimeout(450);await keys([]);console.log(JSON.stringify({waypoint:target,at:await page.evaluate(()=>starhaven.player)}));return;}

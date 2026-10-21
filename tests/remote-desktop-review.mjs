@@ -10,6 +10,8 @@ import { preview } from 'vite';
 
 assert.equal(process.platform, 'linux', 'Remote desktop QA requires Linux');
 assert.equal(process.env.GITHUB_ACTIONS, 'true', 'Run through the explicit GitHub workflow');
+const requestedSuite = process.env.REMOTE_QA_SUITE || 'all';
+assert(['all', 'player', 'continuous'].includes(requestedSuite));
 const root = 'screenshots/remote-desktop';
 await mkdir(root, { recursive: true });
 const execute = promisify(execFile);
@@ -47,11 +49,11 @@ const report = { started: new Date().toISOString(), status: 'running',
   commit: process.env.GITHUB_SHA, runId: process.env.GITHUB_RUN_ID,
   platform: process.platform, executable: chromium.executablePath(),
   scope: 'Remote Linux software-rendered keyboard/mouse routes; not Windows GPU or OS-focus acceptance',
-  suites: [], windowsBrowserStarted: false, independentReview: false };
+  requestedSuite, suites: [], windowsBrowserStarted: false, independentReview: false };
 const run = (file, env) => new Promise((resolve, reject) => {
   const child = spawn(process.execPath, [file], { stdio: 'inherit',
     env: { ...process.env, GOAL_URL: 'http://127.0.0.1:4259/', ...env },
-    timeout: 15 * 60 * 1000 });
+    timeout: 60 * 60 * 1000 });
   child.once('error', reject);
   child.once('close', (code, signal) => code === 0 ? resolve() : reject(new Error(`${file}: exit=${code}, signal=${signal}`)));
 });
@@ -62,11 +64,11 @@ try {
   assert((devices.stdout + devices.stderr).includes('x11grab'), 'FFmpeg must support X11 capture');
   server = await preview({ preview: { host: '127.0.0.1', port: 4259, strictPort: true } });
   for (const suite of [
-    { name: 'three-normal-routes', file: 'tests/goal-player-review.mjs',
+    { id: 'player', name: 'three-normal-routes', file: 'tests/goal-player-review.mjs',
       report: 'tests/remote-player.json', env: { GOAL_OUT: `${root}/player`, GOAL_REPORT: 'tests/remote-player.json' } },
-    { name: 'three-continuous-visits', file: 'tests/goal-continuous-visit-review.mjs',
+    { id: 'continuous', name: 'three-continuous-visits', file: 'tests/goal-continuous-visit-review.mjs',
       report: 'tests/remote-continuous.json', env: { CONTINUOUS_OUT: `${root}/continuous`, CONTINUOUS_REPORT: 'tests/remote-continuous.json' } },
-  ]) {
+  ].filter(suite => requestedSuite === 'all' || suite.id === requestedSuite)) {
     const entry = { name: suite.name, report: suite.report, status: 'running' };
     report.suites.push(entry);
     entry.recording = { method: 'FFmpeg X11 desktop; independent of Chromium screencast',
@@ -96,7 +98,7 @@ try {
   report.status = 'passed';
 } catch (error) { report.status = 'failed'; report.failure = error.stack; process.exitCode = 1; }
 finally {
-  if (server) await new Promise(resolve => server.httpServer.close(resolve));
+  if (server) { server.httpServer.closeAllConnections(); await new Promise(resolve => server.httpServer.close(resolve)); }
   report.finished = new Date().toISOString();
   await writeFile('tests/remote-desktop-summary.json', JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify(report));

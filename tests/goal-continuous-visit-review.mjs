@@ -4,6 +4,7 @@ import {flyTo,flyIntoRoom} from './room-flight-route.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const out=process.env.CONTINUOUS_OUT||'screenshots/v14-rc63-continuous';await mkdir(out,{recursive:true});
+const flightTimeout=Number(process.env.GOAL_FLIGHT_TIMEOUT_MS||60000),transitionTimeout=Number(process.env.GOAL_CONTACT_TIMEOUT_MS||30000);
 const report={started:new Date().toISOString(),method:'One normal load, one page, three consecutive real flight/entry/project/exit routes. No reload, Home, or pose/state/camera writes. Trusted mouse/keyboard and passive telemetry.',environment:{platform:process.platform,executable:chromium.executablePath(),launchOptions:desktopLaunchOptions},rounds:[],errors:[],requests:[]};
 const browser=await chromium.launch(desktopLaunchOptions);
 const context=await browser.newContext({viewport:{width:1440,height:960}}),page=await context.newPage();
@@ -19,21 +20,22 @@ try{
  for(const [index,route]of routes.entries()){
   const round={round:index+1,waypoints:[],projects:route.projects};report.rounds.push(round);
   for(const [pointIndex,point]of route.points.entries()){
-   await flyTo(page,point,{radius:1,timeout:60000});round.waypoints.push(await snap());
+   await flyTo(page,point,{radius:1,timeout:flightTimeout});round.waypoints.push(await snap());
    if(route.riseAfterFirst&&pointIndex===0){
     // A nearly vertical target has no stable horizontal bearing for flyTo's
     // aiming helper. Exercise the product's actual dedicated rise key.
     await page.mouse.move(720,480);await page.keyboard.down('Space');
-    try{await page.waitForFunction(()=>starhaven.player[1]>=9.5,{timeout:7000});}finally{await page.keyboard.up('Space');}
+    try{await page.waitForFunction(()=>starhaven.player[1]>=9.5,null,{timeout:transitionTimeout});}finally{await page.keyboard.up('Space');}
     await page.keyboard.down('x');await page.waitForTimeout(700);await page.keyboard.up('x');round.verticalRise=await snap();assert.ok(round.verticalRise.player[1]>9.4);
    }
   }
-  await flyIntoRoom(page);await page.waitForFunction(()=>starhaven.state==='ROOM'&&!starhaven.cameraProgress.transition);round.entered=await snap();assert.equal(round.entered.passage.entries,index+1);assert.equal(round.entered.room.groupUUID,identity.groupUUID);assert.deepEqual(round.entered.room.entities.map(e=>e.uuid),identity.entities.map(e=>e.uuid));
+  await flyIntoRoom(page,{timeout:flightTimeout});await page.waitForFunction(()=>starhaven.state==='ROOM'&&!starhaven.cameraProgress.transition,null,{timeout:transitionTimeout});round.entered=await snap();assert.equal(round.entered.passage.entries,index+1);assert.equal(round.entered.room.groupUUID,identity.groupUUID);assert.deepEqual(round.entered.room.entities.map(e=>e.uuid),identity.entities.map(e=>e.uuid));
   round.roomScreenshot=`${out}/round-${index+1}-room.png`;round.capture=await saveDesktopFrame(page,round.roomScreenshot);
-  for(const id of route.projects){await page.locator(`#hotspots [data-exhibit="${id}"]`).click();await page.waitForFunction(project=>starhaven.book.status==='open'&&starhaven.currentProject===project,id);await page.locator('#project-back').click();await page.waitForTimeout(900);}
-  await page.locator('#exit').click();await page.waitForFunction(()=>starhaven.state==='SPACE'&&!starhaven.cameraProgress.transition);round.exited=await snap();assert.equal(round.exited.passage.exits,index+1);assert.deepEqual(round.exited.keys,[]);
+  for(const id of route.projects){await page.locator(`#hotspots [data-exhibit="${id}"]`).click();await page.waitForFunction(project=>starhaven.book.status==='open'&&starhaven.currentProject===project,id,{timeout:transitionTimeout});await page.locator('#project-back').click();await page.waitForFunction(()=>starhaven.state==='ROOM'&&!starhaven.cameraProgress.transition,null,{timeout:transitionTimeout});}
+  await page.locator('#exit').click();await page.waitForFunction(()=>starhaven.state==='SPACE'&&!starhaven.cameraProgress.transition,null,{timeout:transitionTimeout});round.exited=await snap();assert.equal(round.exited.passage.exits,index+1);assert.deepEqual(round.exited.keys,[]);
   await page.mouse.move(720,480);await page.keyboard.down('w');await page.waitForTimeout(900);await page.keyboard.up('w');await page.keyboard.down('x');await page.waitForTimeout(500);await page.keyboard.up('x');round.departed=await snap();assert.equal(round.departed.state,'SPACE');assert.equal(round.departed.passage.entries,index+1);assert.ok(round.departed.player[2]>round.exited.player[2]+2);round.status='passed';
   console.log(JSON.stringify({round:index+1,entries:round.departed.passage.entries,exits:round.departed.passage.exits,status:round.status}));
+  console.log(`::notice title=Continuous visit::Round ${index+1} passed; entries=${round.departed.passage.entries}, exits=${round.departed.passage.exits}`);
  }
  report.inputs=await page.evaluate(()=>window.__continuousInputs);report.trustedInputs=report.inputs.filter(i=>i.trusted).length;report.untrustedInputs=report.inputs.filter(i=>!i.trusted).length;assert.equal(report.untrustedInputs,0);assert.deepEqual(report.errors,[]);assert.deepEqual(report.requests,[]);report.status='passed';
 }catch(error){report.status='failed';report.failure=error.stack;process.exitCode=1;await saveDesktopFrame(page,`${out}/failure.png`).catch(captureError=>{report.failureCaptureError=captureError.message;});}

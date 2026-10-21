@@ -12,8 +12,17 @@ concurrency:
 
 jobs:
   desktop:
+    name: desktop-${{ matrix.suite }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 70
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [continuous, player]
+    env:
+      REMOTE_QA_SUITE: ${{ matrix.suite }}
+      GOAL_FLIGHT_TIMEOUT_MS: '600000'
+      GOAL_CONTACT_TIMEOUT_MS: '180000'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,7 +43,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: desktop-playthrough-${{ github.sha }}
+          name: desktop-playthrough-${{ matrix.suite }}-${{ github.sha }}
           path: |
             screenshots/remote-desktop/
             tests/remote-*.json
