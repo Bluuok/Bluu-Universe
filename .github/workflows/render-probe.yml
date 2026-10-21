@@ -2,6 +2,12 @@ name: Remote render environment probe
 
 on:
   workflow_dispatch:
+    inputs:
+      check:
+        description: Bounded diagnostic, not full route acceptance
+        type: choice
+        default: ui-surface
+        options: [ui-surface, opengl]
 
 permissions:
   contents: read
@@ -12,6 +18,7 @@ jobs:
     timeout-minutes: 10
     env:
       LIBGL_ALWAYS_SOFTWARE: 'true'
+      REMOTE_RENDER_CHECK: ${{ inputs.check }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
