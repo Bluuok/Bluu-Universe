@@ -1,7 +1,7 @@
 // Shared browser route: trusted input only, no product fixtures or teleport.
 export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false,timeout=45000,pulseNear=false}={}){
   const started=Date.now(),held=new Set(),trace=[],wrap=v=>Math.atan2(Math.sin(v),Math.cos(v));
-  let wasMoving=false,nearStops=0,nearLifted=false;
+  let wasMoving=false,nearStops=0,nearLifted=false,primaryError;
   const keys=async wanted=>{for(const k of [...held])if(!wanted.includes(k)){await page.keyboard.up(k);held.delete(k);}for(const k of wanted)if(!held.has(k)){await page.keyboard.down(k);held.add(k);}};
   const center=async()=>{const v=page.viewportSize();await page.mouse.move(v.width/2,v.height/2);};
   try{
@@ -94,7 +94,13 @@ export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false
       await page.waitForTimeout(70);
     }
     throw Error('Normal-input flight route timed out: '+JSON.stringify({target,trace:trace.slice(-8),observation:await page.evaluate(()=>({state:starhaven.state,p:starhaven.player,v:starhaven.velocity,f:starhaven.flight,passage:starhaven.passage}))}));
-  }finally{await keys([]);await center();}
+  }catch(error){
+    primaryError=error;
+    error.stack=(error.stack||error.message)+'\nFlight context: '+JSON.stringify({target,trace:trace.slice(-8),detours:trace.filter(step=>step.action)});
+    throw error;
+  }finally{
+    try{await keys([]);await center();}catch(cleanupError){if(!primaryError)throw cleanupError;}
+  }
 }
 export async function flyIntoRoom(page,options={}){
   await flyTo(page,[1.35,1.8,11],{...options,radius:.45});
