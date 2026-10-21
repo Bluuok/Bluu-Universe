@@ -42,9 +42,22 @@ export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false
         await keys(['w']);await page.waitForTimeout(Math.min(160,Math.max(30,(length-(enter?0:radius*.6))*70)));
         await keys(['x']);await page.waitForTimeout(180);continue;
       }
-      const ye=wrap(Math.atan2(-d[0],-d[2])-s.f.yaw),pe=Math.atan2(d[1],Math.hypot(d[0],d[2]))-s.f.pitch;
+      const ye=wrap(Math.atan2(-d[0],-d[2])-s.f.yaw),pe=Math.max(-1.3,Math.min(1.3,Math.atan2(d[1],Math.hypot(d[0],d[2]))))-s.f.pitch;
       if(s.f.inputMode==='relative-mouse'){
-        await lookBy(page,-ye/s.f.lookSensitivity,-pe/s.f.lookSensitivity);
+        // Each real mouse command can span a rendered frame. Do not leave W
+        // held while issuing a turn, or an old heading keeps flying meanwhile.
+        // Aligned travel needs no mouse command at all.
+        if(Math.abs(ye)>.008||Math.abs(pe)>.008){
+          await keys(['x']);
+          await page.waitForFunction(()=>starhaven.state!=='SPACE'||Math.hypot(...starhaven.velocity)<.15,null,
+            {timeout:Math.max(1,timeout-(Date.now()-started))});
+          const stopped=await page.evaluate(()=>({state:starhaven.state,p:starhaven.player,f:starhaven.flight}));
+          if(stopped.state!=='SPACE')throw Error('Steering brake left SPACE unexpectedly: '+stopped.state);
+          const aim=target.map((v,i)=>v-stopped.p[i]);
+          await lookBy(page,-wrap(Math.atan2(-aim[0],-aim[2])-stopped.f.yaw)/stopped.f.lookSensitivity,
+            -(Math.max(-1.3,Math.min(1.3,Math.atan2(aim[1],Math.hypot(aim[0],aim[2]))))-stopped.f.pitch)/stopped.f.lookSensitivity);
+          continue;
+        }
         const desired=enter?Math.min(8,Math.max(2,distance*1.3)):Math.min(10,Math.max(.8,(distance-radius)*1.8));
         await keys(Math.abs(ye)>1||Math.abs(pe)>.8||speed>desired+1?['x']:speed<desired-.3?['w']:[]);
         await page.waitForTimeout(70);continue;

@@ -18,7 +18,7 @@ await mkdir(root, { recursive: true });
 const report = { started: new Date().toISOString(), commit: process.env.GITHUB_SHA,
   check, scope: 'Bounded renderer/UI diagnostic; no quality or product-state writes; not three-round acceptance',
   windowsBrowserStarted: false, completedRounds: 0, errors: [], captures: [] };
-let server, browser, page;
+let server, browser, page, observe;
 try {
   server = await preview({ preview: { host: '127.0.0.1', port: 4259, strictPort: true } });
   // Documented ANGLE backend selection; do not disable the watchdog or sandbox.
@@ -40,7 +40,7 @@ try {
   report.build = await runtimeBuildIdentity(page);
   await page.waitForFunction(() => window.starhaven?.ready, null, { timeout: 120000 });
   await page.bringToFront();
-  const observe = () => page.evaluate(() => ({ player: starhaven.player, velocity: starhaven.velocity, state: starhaven.state,
+  observe = () => page.evaluate(() => ({ player: starhaven.player, velocity: starhaven.velocity, state: starhaven.state,
     book: starhaven.book, passage: starhaven.passage, cameraProgress: starhaven.cameraProgress,
     panel: { hidden: document.getElementById('project-panel').hidden,
       opacity: getComputedStyle(document.getElementById('project-panel')).opacity },
@@ -97,7 +97,10 @@ try {
   report.after = await observe(); await frame('after');
   }
   report.status = 'diagnostic-completed';
-} catch (error) { report.status = 'failed'; report.failure = error.stack; process.exitCode = 1; }
+} catch (error) {
+  report.status = 'failed'; report.failure = error.stack; process.exitCode = 1;
+  if (observe && page && !page.isClosed()) report.failureObservation = await observe().catch(error => ({ error: error.message }));
+}
 finally {
   if (page && !page.isClosed()) { await page.keyboard.up('w').catch(() => {}); await page.keyboard.up('x').catch(() => {}); }
   if (browser) await browser.close();
