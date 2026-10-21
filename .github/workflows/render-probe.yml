@@ -7,7 +7,7 @@ on:
         description: Bounded diagnostic, not full route acceptance
         type: choice
         default: ui-surface
-        options: [ui-surface, arrival, opengl]
+        options: [ui-surface, arrival, paint-surface, opengl]
 
 permissions:
   contents: read

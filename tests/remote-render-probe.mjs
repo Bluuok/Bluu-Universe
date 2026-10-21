@@ -1,7 +1,7 @@
 // Environment diagnostic only; not a route or visual acceptance pass.
 import { chromium, desktopLaunchOptions, saveDesktopFrame } from './browser-runtime.mjs';
 import { runtimeBuildIdentity } from './runtime-build-identity.mjs';
-import { preview } from 'vite';
+import { preview, build } from 'vite';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
@@ -12,13 +12,15 @@ assert.equal(process.platform, 'linux');
 assert.equal(process.env.GITHUB_ACTIONS, 'true');
 assert.equal(process.env.LIBGL_ALWAYS_SOFTWARE, 'true');
 const check = process.env.REMOTE_RENDER_CHECK || 'opengl';
-assert(['opengl', 'ui-surface', 'arrival'].includes(check));
+assert(['opengl', 'ui-surface', 'arrival', 'paint-surface'].includes(check));
 const root = `screenshots/remote-desktop/render-probe/${check}`;
 await mkdir(root, { recursive: true });
 const report = { started: new Date().toISOString(), commit: process.env.GITHUB_SHA,
-  check, scope: 'Bounded renderer/UI diagnostic; no quality or product-state writes; not three-round acceptance',
+  check, scope: check === 'paint-surface'
+    ? 'Material A/B diagnostic: explicit inspection camera, normal reload, temporary CI source patch; zero gameplay acceptance'
+    : 'Bounded renderer/UI diagnostic; no quality or product-state writes; not three-round acceptance',
   windowsBrowserStarted: false, completedRounds: 0, errors: [], captures: [] };
-let server, browser, page, observe;
+let server, browser, page, observe, restoreSource;
 try {
   server = await preview({ preview: { host: '127.0.0.1', port: 4259, strictPort: true } });
   // Documented ANGLE backend selection; do not disable the watchdog or sandbox.
@@ -49,7 +51,47 @@ try {
   report.before = await observe();
   const frame = async (name, options) => { const file = `${root}/${name}.png`, before = await observe();
     report.captures.push({ file, before, capture: await saveDesktopFrame(page, file, options), after: await observe() }); };
-  if (check === 'arrival') {
+  if (check === 'paint-surface') {
+    report.debugCameraUsed = true; report.gameplayAttempted = false; report.normalReloadUsed = true;
+    report.viewSource = 'RC82 real-input run 39587367340, player job 119179505113; observation.camera and avoidance.focus';
+    const views = [
+      { name: 'near-curl-back', position: [-103.23675455330229, -14.694114180000716, -141.60522988390125], target: [-107.69178005179607, -15.598062824439765, -134.41730769313475] },
+      { name: 'far-curl-back', position: [-38.129329889124094, -23.184697249568316, -193.74178161491398], target: [-43.16633820049989, -20.929329874550234, -200.20290329760834] },
+    ];
+    const sourceFile = 'src/config/PaintFlowManifest.js', original = await readFile(sourceFile, 'utf8');
+    const before = 'surface:{strokeStrength:.24,relief:.0018,paintScale:.30,globalUV:true}',
+      after = 'surface:{strokeStrength:.50,relief:.0035,paintScale:.30,globalUV:true}';
+    assert.equal(original.split(before).length, 2, 'Expected one frozen RC82 surface profile');
+    const candidate = original.replace(before, after), digest = text => createHash('sha256').update(text).digest('hex');
+    report.surfacePatch = { file: sourceFile, before, after, baselineSourceSHA256: digest(original), candidateSourceSHA256: digest(candidate) };
+    report.variants = [];
+    for (const variant of ['baseline', 'candidate']) {
+      if (variant === 'candidate') {
+        restoreSource = { file: sourceFile, text: original };
+        await writeFile(sourceFile, candidate);
+        await build();
+        await page.reload({ waitUntil: 'domcontentloaded', timeout: 45000 });
+        await page.waitForFunction(() => window.starhaven?.ready, null, { timeout: 120000 });
+      }
+      await page.locator('#loading').waitFor({ state: 'hidden', timeout: 30000 });
+      const entry = { variant, build: await runtimeBuildIdentity(page), views: [] };
+      report.variants.push(entry);
+      const origin = await page.evaluate(() => ({ player: starhaven.player, state: starhaven.state }));
+      for (const view of views) {
+        assert(await page.evaluate(view => starhaven.inspect.framePosition({ ...view, duration: .01 }), view));
+        await page.waitForFunction(() => !starhaven.cameraProgress.transition, null, { timeout: 45000 });
+        await frame(`${variant}-${view.name}`, { settle: true });
+        const observation = await page.evaluate(() => ({ player: starhaven.player, state: starhaven.state,
+          camera: starhaven.camera, target: starhaven.cameraProgress.target, paintFlow: starhaven.ambient.paintFlow }));
+        assert.deepEqual(observation.player, origin.player, 'Diagnostic camera must not place the player');
+        assert.equal(observation.state, origin.state, 'Diagnostic camera must not change scene state');
+        entry.views.push({ name: view.name, requested: view, observation });
+      }
+    }
+    assert.notEqual(report.variants[0].build.sha256, report.variants[1].build.sha256);
+    assert.equal(report.variants[0].build.cssSHA256, report.variants[1].build.cssSHA256);
+    assert.deepEqual(report.errors, []);
+  } else if (check === 'arrival') {
     await page.locator('#loading').waitFor({ state: 'hidden', timeout: 30000 });
     report.arrivalTarget = [-3, 3, 10]; report.arrivalRadius = 1;
     await flyTo(page, report.arrivalTarget, { radius: report.arrivalRadius, timeout: 120000 });
@@ -105,6 +147,10 @@ finally {
   if (page && !page.isClosed()) { await page.keyboard.up('w').catch(() => {}); await page.keyboard.up('x').catch(() => {}); }
   if (browser) await browser.close();
   if (server) { server.httpServer.closeAllConnections(); await new Promise(resolve => server.httpServer.close(resolve)); }
+  if (restoreSource) {
+    await writeFile(restoreSource.file, restoreSource.text);
+    report.temporarySourceRestored = (await readFile(restoreSource.file, 'utf8')) === restoreSource.text;
+  }
   report.finished = new Date().toISOString();
   const file = 'tests/remote-render-probe.json';
   await writeFile(file, JSON.stringify(report, null, 2) + '\n');
