@@ -26,10 +26,33 @@ export const desktopLaunchOptions = {
 // Capture the remote X11 framebuffer independently of Chromium's screenshot
 // and screencast APIs. Keep the entire desktop as evidence of the real window;
 // do not pause animation, crop away failures, or change application quality.
-export async function saveDesktopFrame(page, file) {
+export async function saveDesktopFrame(page, file, { settle = false } = {}) {
   if (process.platform !== 'linux' || process.env.GITHUB_ACTIONS !== 'true')
     throw new Error('Desktop view capture is restricted to the remote Linux job');
   if (!/^:\d+(\.\d+)?$/.test(process.env.DISPLAY || '')) throw new Error('Expected a local X11 display');
+  let presentation = null, paintFrames = null;
+  if (settle) {
+    // Logical book status precedes image decoding and compositor presentation.
+    // Observe completion without pausing animation or writing product state.
+    await page.waitForFunction(() => {
+      const app = window.starhaven, panel = document.getElementById('project-panel');
+      if (!app?.ready || !document.getElementById('loading').hidden ||
+        app.cameraProgress.transition || app.passage.phase) return false;
+      if (app.state !== 'PROJECT') return app.state === 'ROOM' || app.state === 'SPACE';
+      return app.book.status === 'open' && ['loaded', 'empty', 'error'].includes(panel.querySelector('.book-media').dataset.state) &&
+        panel.getAnimations({ subtree: true }).every(animation => !animation.pending && animation.playState !== 'running');
+    }, null, { timeout: 180000 });
+    presentation = await page.evaluate(() => ({ state: starhaven.state, book: starhaven.book,
+      mediaState: document.querySelector('#project-panel .book-media').dataset.state }));
+    if (presentation.state === 'PROJECT' && presentation.mediaState === 'error') throw new Error('Project image failed to load');
+    let deadline;
+    try {
+      paintFrames = await Promise.race([
+        page.evaluate(() => new Promise(resolve => requestAnimationFrame(first => requestAnimationFrame(second => resolve({ first, second }))))),
+        new Promise((_, reject) => { deadline = setTimeout(() => reject(new Error('Display frame wait timed out')), 45000); }),
+      ]);
+    } finally { clearTimeout(deadline); }
+  }
   const { execFile } = await import('node:child_process'), { promisify } = await import('node:util');
   await promisify(execFile)('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y',
     '-f', 'x11grab', '-video_size', '1600x1100', '-framerate', '1', '-i', process.env.DISPLAY,
@@ -40,5 +63,6 @@ export async function saveDesktopFrame(page, file) {
   if (width !== 1600 || height !== 1100) throw new Error(`Unexpected desktop frame: ${width}x${height}`);
   const window = await page.evaluate(() => ({ x: screenX, y: screenY, outerWidth, outerHeight,
     innerWidth, innerHeight, screenWidth: screen.width, screenHeight: screen.height, focused: document.hasFocus() }));
-  return { method: 'FFmpeg x11grab whole remote desktop', width, height, viewport: page.viewportSize(), window };
+  return { method: 'FFmpeg x11grab whole remote desktop', width, height, viewport: page.viewportSize(), window,
+    settleRequested: settle, presentation, paintFrames };
 }

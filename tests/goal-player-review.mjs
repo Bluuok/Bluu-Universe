@@ -19,7 +19,7 @@ const report={startedAt:new Date().toISOString(),method:'Three normal-reload rou
 let page,current;
 const observe=()=>page.evaluate(()=>({state:starhaven.state,player:starhaven.player,velocity:starhaven.velocity,flight:starhaven.flight,camera:starhaven.camera,framing:starhaven.framing,room:starhaven.inspect.roomEntities(),collision:starhaven.inspect.collision(),rendering:starhaven.rendering,project:starhaven.currentProject}));
 async function save(){await writeFile(file,JSON.stringify(report,null,2)+'\n');}
-async function shot(name){const p=path.join(out,`route-${current.id}-${name}.png`);const capture=await saveDesktopFrame(page,p);const observation=await observe();current.steps.push({name,screenshot:p,capturedAt:new Date().toISOString(),capture,observation});await save();console.log(JSON.stringify({route:current.id,step:name,state:observation.state,player:observation.player}));console.log(`::notice title=Desktop route ${current.id}::${name} ${JSON.stringify(observation.player)}`);}
+async function shot(name){const p=path.join(out,`route-${current.id}-${name}.png`);const capture=await saveDesktopFrame(page,p,{settle:true});const observation=await observe();current.steps.push({name,screenshot:p,capturedAt:new Date().toISOString(),capture,observation});await save();console.log(JSON.stringify({route:current.id,step:name,state:observation.state,player:observation.player}));console.log(`::notice title=Desktop route ${current.id}::${name} ${JSON.stringify(observation.player)}`);}
 async function go(p,name,radius=1.0){await flyTo(page,p,{radius,timeout:flightTimeout});await shot(name);}
 const wrap=v=>Math.atan2(Math.sin(v),Math.cos(v));
 async function face(yaw,pitch=0){

@@ -2,6 +2,12 @@ name: Remote desktop playthrough
 
 on:
   workflow_dispatch:
+    inputs:
+      suite:
+        description: Existing route suite to run
+        type: choice
+        default: all
+        options: [all, continuous, player]
 
 permissions:
   contents: read
@@ -18,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [continuous, player]
+        suite: ${{ fromJSON(inputs.suite == 'continuous' && '["continuous"]' || inputs.suite == 'player' && '["player"]' || '["continuous","player"]') }}
     env:
       REMOTE_QA_SUITE: ${{ matrix.suite }}
       GOAL_FLIGHT_TIMEOUT_MS: '600000'
