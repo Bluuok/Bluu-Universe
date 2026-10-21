@@ -26,11 +26,11 @@ export const desktopLaunchOptions = {
 // Capture the remote X11 framebuffer independently of Chromium's screenshot
 // and screencast APIs. Keep the entire desktop as evidence of the real window;
 // do not pause animation, crop away failures, or change application quality.
-export async function saveDesktopFrame(page, file, { settle = false } = {}) {
+export async function saveDesktopFrame(page, file, { settle = false, finishGPU = false } = {}) {
   if (process.platform !== 'linux' || process.env.GITHUB_ACTIONS !== 'true')
     throw new Error('Desktop view capture is restricted to the remote Linux job');
   if (!/^:\d+(\.\d+)?$/.test(process.env.DISPLAY || '')) throw new Error('Expected a local X11 display');
-  let presentation = null, paintFrames = null;
+  let presentation = null, paintFrames = null, gpuCompletion = null;
   if (settle) {
     // Logical book status precedes image decoding and compositor presentation.
     // Observe completion without pausing animation or writing product state.
@@ -53,6 +53,30 @@ export async function saveDesktopFrame(page, file, { settle = false } = {}) {
       ]);
     } finally { clearTimeout(deadline); }
   }
+  if (finishGPU) {
+    if (!settle) throw new Error('GPU completion requires a settled diagnostic frame');
+    let deadline;
+    try {
+      gpuCompletion = await Promise.race([
+        page.evaluate(() => new Promise((resolve, reject) => requestAnimationFrame(() => {
+          try {
+            const canvas = document.getElementById('world'), gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+            if (!gl || gl.isContextLost()) throw new Error('Diagnostic WebGL context unavailable');
+            const started = performance.now();
+            // WebGL finish drains prior GPU commands; it does not certify OS
+            // compositor presentation. The native pixels still need review.
+            // https://registry.khronos.org/webgl/specs/latest/1.0/#5.14.11
+            gl.finish();
+            const finished = performance.now();
+            setTimeout(() => resolve({ method: 'WebGL finish then subsequent task', started, finished,
+              milliseconds: finished - started, contextLost: gl.isContextLost() }), 0);
+          } catch (error) { reject(error); }
+        }))),
+        new Promise((_, reject) => { deadline = setTimeout(() => reject(new Error('Diagnostic GPU completion timed out')), 45000); }),
+      ]);
+      if (gpuCompletion.contextLost) throw new Error('Diagnostic WebGL context lost after finish');
+    } finally { clearTimeout(deadline); }
+  }
   const { execFile } = await import('node:child_process'), { promisify } = await import('node:util');
   await promisify(execFile)('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y',
     '-f', 'x11grab', '-video_size', '1600x1100', '-framerate', '1', '-i', process.env.DISPLAY,
@@ -64,5 +88,5 @@ export async function saveDesktopFrame(page, file, { settle = false } = {}) {
   const window = await page.evaluate(() => ({ x: screenX, y: screenY, outerWidth, outerHeight,
     innerWidth, innerHeight, screenWidth: screen.width, screenHeight: screen.height, focused: document.hasFocus() }));
   return { method: 'FFmpeg x11grab whole remote desktop', width, height, viewport: page.viewportSize(), window,
-    settleRequested: settle, presentation, paintFrames };
+    settleRequested: settle, presentation, paintFrames, gpuCompletion };
 }

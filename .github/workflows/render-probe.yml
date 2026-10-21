@@ -33,7 +33,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg libgl1-mesa-dri
       - name: Bounded full-quality environment check
-        timeout-minutes: 5
+        timeout-minutes: ${{ inputs.check == 'paint-surface' && 8 || 5 }}
         run: xvfb-run -a -s "-screen 0 1600x1100x24" node tests/remote-render-probe.mjs
       - uses: actions/upload-artifact@v4
         if: always()

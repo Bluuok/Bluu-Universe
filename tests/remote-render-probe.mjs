@@ -53,10 +53,14 @@ try {
     report.captures.push({ file, before, capture: await saveDesktopFrame(page, file, options), after: await observe() }); };
   if (check === 'paint-surface') {
     report.debugCameraUsed = true; report.gameplayAttempted = false; report.normalReloadUsed = true;
-    report.viewSource = 'RC82 real-input run 39587367340, player job 119179505113; observation.camera and avoidance.focus';
+    report.viewSource = 'Explicit material closeups centred at authored broad-s-current curve t=.22; not player views or a replay';
+    const { CatmullRomCurve3, Vector3 } = await import('three');
+    const { PaintFlowManifest } = await import('../src/config/PaintFlowManifest.js');
+    const recipe = PaintFlowManifest.paths.find(path => path.id === 'broad-s-current');
+    const centre = new CatmullRomCurve3(recipe.points.map(point => new Vector3(...point)), false, 'centripetal').getPointAt(.22);
     const views = [
-      { name: 'near-curl-back', position: [-103.23675455330229, -14.694114180000716, -141.60522988390125], target: [-107.69178005179607, -15.598062824439765, -134.41730769313475] },
-      { name: 'far-curl-back', position: [-38.129329889124094, -23.184697249568316, -193.74178161491398], target: [-43.16633820049989, -20.929329874550234, -200.20290329760834] },
+      { name: 's-pigment-front', position: centre.clone().add(new Vector3(0, 0, 15)).toArray(), target: centre.toArray() },
+      { name: 's-pigment-back', position: centre.clone().add(new Vector3(0, 0, -15)).toArray(), target: centre.toArray() },
     ];
     const sourceFile = 'src/config/PaintFlowManifest.js', original = await readFile(sourceFile, 'utf8');
     const before = 'surface:{strokeStrength:.24,relief:.0018,paintScale:.30,globalUV:true}',
@@ -80,7 +84,7 @@ try {
       for (const view of views) {
         assert(await page.evaluate(view => starhaven.inspect.framePosition({ ...view, duration: .01 }), view));
         await page.waitForFunction(() => !starhaven.cameraProgress.transition, null, { timeout: 45000 });
-        await frame(`${variant}-${view.name}`, { settle: true });
+        await frame(`${variant}-${view.name}`, { settle: true, finishGPU: true });
         const observation = await page.evaluate(() => ({ player: starhaven.player, state: starhaven.state,
           camera: starhaven.camera, target: starhaven.cameraProgress.target, paintFlow: starhaven.ambient.paintFlow }));
         assert.deepEqual(observation.player, origin.player, 'Diagnostic camera must not place the player');
