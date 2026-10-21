@@ -13,10 +13,13 @@ body.position.set(.5,0,0);controller.velocity.set(10,0,0);
 globalThis.starhaven={get state(){return state.value;},get player(){return body.position.toArray();},
   get velocity(){return controller.velocity.toArray();},get flight(){return {inputMode:'relative-mouse',
     yaw:controller.yaw,pitch:controller.pitch,lookSensitivity:controller.flight.lookSensitivity};}};
-let wall=0,lastFrame=0,nextFrame=5000,frames=0,right=false,pointer=[720,480],brakedFrames=0,overshot=false;
+const frameInterval=Number(process.env.ARRIVAL_CPU_FRAME_MS||1000/60);
+assert(Number.isFinite(frameInterval)&&frameInterval>0);
+let wall=0,lastFrame=0,nextFrame=5000,frames=0,right=false,pointer=[720,480],brakedFrames=0,liftFrames=0,overshot=false;
 const advance=milliseconds=>{const end=wall+milliseconds;while(nextFrame<=end){
-  wall=nextFrame;nextFrame+=1000/60;frames++;assert(frames<8000,'CPU scenario exceeded its frame budget');
+  wall=nextFrame;nextFrame+=frameInterval;frames++;assert(frames<500,'CPU scenario exceeded its frame budget');
   if(controller.keys.has('KeyX'))brakedFrames++;
+  if(controller.keys.has('Space'))liftFrames++;
   const dt=Math.min((wall-lastFrame)/1000,.35),steps=Math.ceil(dt/.05);lastFrame=wall;
   for(let i=0;i<steps;i++)controller.update(dt/steps,wall/1000);
   if(body.position.length()>1)overshot=true;
@@ -37,8 +40,11 @@ try{
   assert(brakedFrames>0,'The brake must be consumed by the actual controller');
   assert(body.position.length()<1,'Arrival must be inside the requested radius after braking');
   assert.equal(controller.keys.size,0,'Helper must release its keys');
-  console.log(JSON.stringify({status:'passed',browserStarted:false,simulation:'actual SpaceController; initial 5-second stall then 60 Hz',
-    frames,brakedFrames,overshootCorrected:overshot,finalDistance:body.position.length(),finalSpeed:controller.velocity.length()}));
+  console.log(JSON.stringify({status:'passed',browserStarted:false,simulation:`actual SpaceController; initial 5-second stall then ${frameInterval} ms per frame`,
+    frames,brakedFrames,liftFrames,overshootCorrected:overshot,finalDistance:body.position.length(),finalSpeed:controller.velocity.length()}));
+}catch(error){
+  console.error(JSON.stringify({status:'failed',frames,brakedFrames,liftFrames,player:body.position.toArray(),speed:controller.velocity.length()}));
+  throw error;
 }finally{
   controller.dispose();
   for(const [key,value] of Object.entries(saved))if(value===undefined)delete globalThis[key];else globalThis[key]=value;

@@ -1,6 +1,7 @@
 // Shared browser route: trusted input only, no product fixtures or teleport.
 export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false,timeout=45000,pulseNear=false}={}){
   const started=Date.now(),held=new Set(),trace=[],wrap=v=>Math.atan2(Math.sin(v),Math.cos(v));
+  let wasMoving=false,nearStops=0,nearLifted=false;
   const keys=async wanted=>{for(const k of [...held])if(!wanted.includes(k)){await page.keyboard.up(k);held.delete(k);}for(const k of wanted)if(!held.has(k)){await page.keyboard.down(k);held.add(k);}};
   const center=async()=>{const v=page.viewportSize();await page.mouse.move(v.width/2,v.height/2);};
   try{
@@ -13,6 +14,8 @@ export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false
       if(enter&&s.state!=='SPACE'){await keys([]);await center();if(!stopOnCross)await page.waitForFunction(()=>starhaven.state==='ROOM'&&!starhaven.cameraProgress.transition,{},{timeout:Math.max(15000,timeout)});return;}
       if(s.state!=='SPACE')throw Error('Flight route left SPACE unexpectedly: '+s.state);
       const d=target.map((v,i)=>v-s.p[i]),distance=Math.hypot(...d),speed=Math.hypot(...s.v);
+      if(speed>.15)wasMoving=true;
+      else if(wasMoving){wasMoving=false;if(distance<3)nearStops++;}
       if(!enter&&distance<radius){
         await center();await keys([s.f.inputMode==='relative-mouse'?'x':'s']);
         // Hold through an actual simulation frame. A fixed short tap can be
@@ -25,7 +28,22 @@ export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false
         // Crossing the radius before braking is not arrival. Correct any real
         // inertial overshoot using the same keyboard/mouse feedback loop.
         if(Math.hypot(...target.map((v,i)=>v-stopped.p[i]))>=radius)continue;
-        console.log(JSON.stringify({waypoint:target,at:stopped.p}));return;
+        console.log(JSON.stringify({waypoint:target,at:stopped.p}));
+        return {target,player:stopped.p,detours:trace.filter(step=>step.action)};
+      }
+      // Persistent long frames can make minimum forward travel wider than the
+      // target radius. Break a repeated straight-line overshoot with one real
+      // vertical detour, then approach the unchanged target from a new angle.
+      if(!enter&&s.f.inputMode==='relative-mouse'&&speed<.15&&distance<3&&nearStops>=2&&!nearLifted){
+        nearLifted=true;await keys(['Space']);
+        await page.waitForFunction(y=>starhaven.state!=='SPACE'||starhaven.player[1]>y+.5,s.p[1],
+          {timeout:Math.max(1,timeout-(Date.now()-started))});
+        await keys(['x']);
+        await page.waitForFunction(()=>starhaven.state!=='SPACE'||Math.hypot(...starhaven.velocity)<.15,null,
+          {timeout:Math.max(1,timeout-(Date.now()-started))});
+        await keys([]);
+        trace.push({at:Date.now(),action:'real-vertical-detour',from:s.p,to:await page.evaluate(()=>starhaven.player)});
+        continue;
       }
       // Optional slow-feedback QA route: stop before reading/turning near a
       // target, then issue a bounded real key pulse. No game state is written.

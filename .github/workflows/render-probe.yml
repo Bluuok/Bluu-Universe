@@ -28,7 +28,9 @@ jobs:
       - run: npm ci
       - run: node tests/browser-safety-check.mjs
       - name: Flight arrival CPU regression (no browser launch)
-        run: node tests/room-flight-arrival-cpu.mjs
+        run: |
+          node tests/room-flight-arrival-cpu.mjs
+          ARRIVAL_CPU_FRAME_MS=5000 node tests/room-flight-arrival-cpu.mjs
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg libgl1-mesa-dri

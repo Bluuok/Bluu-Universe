@@ -47,7 +47,7 @@ try {
   await page.addInitScript(() => {
     window.__probeFrames = []; window.__probeInputs = [];
     for (const type of ['keydown', 'keyup', 'pointerdown', 'pointerup', 'pointermove'])
-      addEventListener(type, event => window.__probeInputs.push({ type, trusted: event.isTrusted }), true);
+      addEventListener(type, event => window.__probeInputs.push({ type, code: event.code, trusted: event.isTrusted, time: performance.now() }), true);
     const sample = time => { if (window.starhaven?.ready) window.__probeFrames.push(time); requestAnimationFrame(sample); };
     requestAnimationFrame(sample);
   });
@@ -111,7 +111,7 @@ try {
   } else if (check === 'arrival') {
     await page.locator('#loading').waitFor({ state: 'hidden', timeout: 30000 });
     report.arrivalTarget = [-3, 3, 10]; report.arrivalRadius = 1;
-    await flyTo(page, report.arrivalTarget, { radius: report.arrivalRadius, timeout: 120000 });
+    report.arrivalPath = await flyTo(page, report.arrivalTarget, { radius: report.arrivalRadius, timeout: 120000 });
     report.after = await observe();
     report.arrivalDistance = Math.hypot(...report.after.player.map((value, i) => value - report.arrivalTarget[i]));
     assert.equal(report.after.state, 'SPACE');
