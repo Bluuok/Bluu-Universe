@@ -1,7 +1,7 @@
 // Shared browser route: trusted input only, no product fixtures or teleport.
 export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false,timeout=45000,pulseNear=false}={}){
   const started=Date.now(),held=new Set(),trace=[],wrap=v=>Math.atan2(Math.sin(v),Math.cos(v));
-  let wasMoving=false,nearStops=0,nearLifted=false,primaryError;
+  let wasMoving=false,nearStops=0,nearStride=0,primaryError;
   const keys=async wanted=>{for(const k of [...held])if(!wanted.includes(k)){await page.keyboard.up(k);held.delete(k);}for(const k of wanted)if(!held.has(k)){await page.keyboard.down(k);held.add(k);}};
   const center=async()=>{const v=page.viewportSize();await page.mouse.move(v.width/2,v.height/2);};
   try{
@@ -31,18 +31,34 @@ export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false
         console.log(JSON.stringify({waypoint:target,at:stopped.p}));
         return {target,player:stopped.p,detours:trace.filter(step=>step.action)};
       }
-      // Persistent long frames can make minimum forward travel wider than the
-      // target radius. Break a repeated straight-line overshoot with one real
-      // vertical detour, then approach the unchanged target from a new angle.
-      if(!enter&&s.f.inputMode==='relative-mouse'&&speed<.15&&distance<3&&nearStops>=2&&!nearLifted){
-        nearLifted=true;await keys(['Space']);
-        await page.waitForFunction(y=>starhaven.state!=='SPACE'||starhaven.player[1]>y+.5,s.p[1],
+      // Near a target, sustained long frames can make one forward step wider
+      // than the arrival radius. Measure real stopped-to-stopped travel rather
+      // than repeating a straight-line chase or relying on fixed short taps.
+      if(!enter&&s.f.inputMode==='relative-mouse'&&distance<12&&nearStops>=2){
+        await keys(['x']);
+        await page.waitForFunction(()=>starhaven.state!=='SPACE'||Math.hypot(...starhaven.velocity)<.15,null,
+          {timeout:Math.max(1,timeout-(Date.now()-started))});
+        const before=await page.evaluate(()=>({state:starhaven.state,p:starhaven.player}));
+        if(before.state!=='SPACE')throw Error('Measured approach left SPACE unexpectedly: '+before.state);
+        const aim=target.map((v,i)=>v-before.p[i]),remaining=Math.hypot(...aim);
+        if(remaining<radius)continue;
+        // A perpendicular step makes room for a subsequent direct approach
+        // when the measured minimum stride would cross the whole target.
+        const sideways=!nearStride||remaining<nearStride*.65;
+        const heading=sideways?(Math.hypot(aim[0],aim[2])>.01?[aim[2],0,-aim[0]]:[1,0,0]):aim;
+        const pitch=Math.max(-1.3,Math.min(1.3,Math.atan2(heading[1],Math.hypot(heading[0],heading[2]))));
+        await faceHeading(page,Math.atan2(-heading[0],-heading[2]),pitch);
+        await keys(['w']);
+        await page.waitForFunction(p=>starhaven.state!=='SPACE'||Math.hypot(...starhaven.player.map((v,i)=>v-p[i]))>.05,before.p,
           {timeout:Math.max(1,timeout-(Date.now()-started))});
         await keys(['x']);
         await page.waitForFunction(()=>starhaven.state!=='SPACE'||Math.hypot(...starhaven.velocity)<.15,null,
           {timeout:Math.max(1,timeout-(Date.now()-started))});
         await keys([]);
-        trace.push({at:Date.now(),action:'real-vertical-detour',from:s.p,to:await page.evaluate(()=>starhaven.player)});
+        const after=await page.evaluate(()=>({state:starhaven.state,p:starhaven.player}));
+        if(after.state!=='SPACE')throw Error('Measured approach left SPACE unexpectedly: '+after.state);
+        nearStride=Math.hypot(...after.p.map((v,i)=>v-before.p[i]));
+        trace.push({at:Date.now(),action:'real-measured-approach',sideways,from:before.p,to:after.p,stride:nearStride});
         continue;
       }
       // Optional slow-feedback QA route: stop before reading/turning near a

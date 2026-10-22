@@ -31,6 +31,8 @@ jobs:
         run: |
           node tests/room-flight-arrival-cpu.mjs
           ARRIVAL_CPU_FRAME_MS=5000 node tests/room-flight-arrival-cpu.mjs
+          ARRIVAL_CPU_SCENARIO=roof ARRIVAL_CPU_FRAME_MS=5000 ARRIVAL_CPU_IO_MS=1000 ARRIVAL_CPU_TIMEOUT_MS=600000 node tests/room-flight-arrival-cpu.mjs
+          ARRIVAL_CPU_SCENARIO=doorway ARRIVAL_CPU_FRAME_MS=5000 ARRIVAL_CPU_IO_MS=1000 ARRIVAL_CPU_TIMEOUT_MS=600000 node tests/room-flight-arrival-cpu.mjs
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg libgl1-mesa-dri

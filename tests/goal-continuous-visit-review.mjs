@@ -19,9 +19,9 @@ try{
  const identity=(await snap()).room;
  const routes=[{points:[[-3,3,10]],projects:['threadcove']},{points:[[12,5,15],[12,7,-10],[-10,7,-10],[-10,5,10]],projects:['clawtide']},{points:[[12,-3,12],[-12,10,12],[-2,3,10]],riseAfterFirst:true,projects:['contributions','contact']}];
  for(const [index,route]of routes.entries()){
-  const round={round:index+1,waypoints:[],projects:route.projects};report.rounds.push(round);
+  const round={round:index+1,waypoints:[],waypointArrivals:[],projects:route.projects};report.rounds.push(round);
   for(const [pointIndex,point]of route.points.entries()){
-   await flyTo(page,point,{radius:1,timeout:flightTimeout});round.waypoints.push(await snap());
+   round.waypointArrivals.push(await flyTo(page,point,{radius:1,timeout:flightTimeout}));round.waypoints.push(await snap());
    if(route.riseAfterFirst&&pointIndex===0){
     // A nearly vertical target has no stable horizontal bearing for flyTo's
     // aiming helper. Exercise the product's actual dedicated rise key.
