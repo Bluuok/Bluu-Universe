@@ -53,6 +53,16 @@ export const paintBrushGLSL=`
       }
 `;
 
+// The thick flows keep their directional UVs. Taper each borrowed bristle
+// print into the next instead of leaving straight, rectangular stamp ends.
+// The cross-section warp is periodic, so the closed sweep keeps its seam.
+const flowBrushGLSL=paintBrushGLSL.replace(`vec2 grid=vec2(uv.x*density+.36*sin(uv.y*6.2831853*7.+sin(uv.x*.31))+.21*sin(uv.x*.8),
+          uv.y*rows+.25*sin(uv.x*1.35)+.23*sin(uv.y*6.2831853*5.+uv.x*.12));`,`vec2 grid=vec2(uv.x*density+.20*sin(uv.y*6.2831853),
+          uv.y*rows+.13*sin(uv.x*.37));`).replace(
+  `float edge=smoothstep(0.,.035,st.x)*(1.-smoothstep(.965,1.,st.x))*(1.-smoothstep(.91,1.,abs(st.y)));`,
+  `float taper=pow(max(0.,sin(st.x*3.14159265)),.35);
+        float edge=smoothstep(0.,.18,st.x)*(1.-smoothstep(.70,1.,st.x))*(1.-smoothstep(.52,.98,abs(st.y)/max(.18,taper)));`);
+
 // Material adaptation only; geometry and owned resources stay with VortexField.
 export function makeVortexPaintMaterial(profile,{cloud=false,brushAtlas}={}) {
   const paintUniforms={oilPaintMap:{value:null},oilPaintLoaded:{value:0},oilBrushAtlas:{value:brushAtlas},
@@ -102,8 +112,7 @@ export function makeVortexPaintMaterial(profile,{cloud=false,brushAtlas}={}) {
         return mix(mix(paintPatch(p,cell),paintPatch(p,cell+vec2(1.,0.)),blend.x),
           mix(paintPatch(p,cell+vec2(0.,1.)),paintPatch(p,cell+vec2(1.)),blend.x),blend.y);
       }
-      ${profile.flowStroke?paintBrushGLSL.replace(`vec2 grid=vec2(uv.x*density+.36*sin(uv.y*6.2831853*7.+sin(uv.x*.31))+.21*sin(uv.x*.8),
-          uv.y*rows+.25*sin(uv.x*1.35)+.23*sin(uv.y*6.2831853*5.+uv.x*.12));`,`vec2 grid=vec2(uv.x*density,uv.y*rows);`):paintBrushGLSL}
+      ${profile.flowStroke?flowBrushGLSL:paintBrushGLSL}
       `+shader.fragmentShader;
     shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
       vec2 paintUV=vec2(vOilUV.x*oilScale,vOilUV.y);
@@ -173,7 +182,7 @@ export function makeVortexPaintMaterial(profile,{cloud=false,brushAtlas}={}) {
   };
   material.userData.paintUniforms=paintUniforms;
   material.userData.permeable=cloud;
-  material.customProgramCacheKey=()=>profile.flowStroke?'vortex-bristle-flow-v3':cloud?'vortex-bristle-cloud-v10':'vortex-bristle-solid-v10';
+  material.customProgramCacheKey=()=>profile.flowStroke?'vortex-bristle-flow-v4':cloud?'vortex-bristle-cloud-v10':'vortex-bristle-solid-v10';
   return material;
 }
 

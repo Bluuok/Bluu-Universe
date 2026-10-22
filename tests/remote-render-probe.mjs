@@ -7,14 +7,15 @@ import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import assert from 'node:assert/strict';
 import { flyTo } from './room-flight-route.mjs';
+import { execFileSync } from 'node:child_process';
 
 assert.equal(process.platform, 'linux');
 assert.equal(process.env.GITHUB_ACTIONS, 'true');
 assert.equal(process.env.LIBGL_ALWAYS_SOFTWARE, 'true');
 const check = process.env.REMOTE_RENDER_CHECK || 'opengl';
 assert(['opengl', 'ui-surface', 'arrival', 'paint-surface'].includes(check));
-const paintSurfaceBefore = 'surface:{strokeStrength:.24,relief:.0018,paintScale:.30,globalUV:true}',
-  paintSurfaceAfter = 'surface:{strokeStrength:.36,relief:.0018,paintScale:.16,globalUV:true}';
+const paintBaselineRef='e326bc410bb369380a3717530819747f6ee93cda';
+const paintSourceFile='src/scenes/sky/VortexPaintMaterial.js';
 const root = `screenshots/remote-desktop/render-probe/${check}`;
 await mkdir(root, { recursive: true });
 const report = { started: new Date().toISOString(), commit: process.env.GITHUB_SHA,
@@ -24,16 +25,15 @@ const report = { started: new Date().toISOString(), commit: process.env.GITHUB_S
   windowsBrowserStarted: false, completedRounds: 0, errors: [], captures: [] };
 let server, browser, page, observe, restoreSource;
 try {
-  // Recreate the same baseline when this diagnostic is run after adoption.
+  // Compare the actual frozen RC83 material source with the new material.
+  // Other candidate code (including hidden error UI) stays the same in both.
   // Only the disposable CI checkout changes; restore its original text below.
   if (check === 'paint-surface') {
-    const file = 'src/config/PaintFlowManifest.js', text = await readFile(file, 'utf8');
-    if (text.includes(paintSurfaceAfter)) {
-      assert.equal(text.split(paintSurfaceAfter).length, 2);
-      restoreSource = { file, text };
-      await writeFile(file, text.replace(paintSurfaceAfter, paintSurfaceBefore));
-      await build();
-    }
+    const text=await readFile(paintSourceFile,'utf8');
+    const baseline=execFileSync('git',['show',`${paintBaselineRef}:${paintSourceFile}`],{encoding:'utf8',maxBuffer:1024*1024});
+    assert.notEqual(text.replace(/\r\n/g,'\n'),baseline.replace(/\r\n/g,'\n'),'Expected a distinct material candidate');
+    restoreSource={file:paintSourceFile,text};
+    await writeFile(paintSourceFile,baseline);await build();
   }
   server = await preview({ preview: { host: '127.0.0.1', port: 4259, strictPort: true } });
   // Documented ANGLE backend selection; do not disable the watchdog or sandbox.
@@ -75,11 +75,10 @@ try {
       { name: 's-pigment-front', position: centre.clone().add(new Vector3(0, 0, 15)).toArray(), target: centre.toArray() },
       { name: 's-pigment-back', position: centre.clone().add(new Vector3(0, 0, -15)).toArray(), target: centre.toArray() },
     ];
-    const sourceFile = 'src/config/PaintFlowManifest.js', baseline = await readFile(sourceFile, 'utf8'),
-      original = restoreSource?.text ?? baseline, before = paintSurfaceBefore, after = paintSurfaceAfter;
-    assert.equal(baseline.split(before).length, 2, 'Expected one baseline surface profile');
-    const candidate = baseline.replace(before, after), digest = text => createHash('sha256').update(text).digest('hex');
-    report.surfacePatch = { file: sourceFile, before, after, originalSourceSHA256: digest(original),
+    const sourceFile=paintSourceFile,baseline=await readFile(sourceFile,'utf8'),original=restoreSource.text,candidate=original,
+      digest=text=>createHash('sha256').update(text).digest('hex');
+    report.surfacePatch = { file: sourceFile, baselineRef:paintBaselineRef, surface:PaintFlowManifest.surface,
+      scope:'Frozen RC83 material source versus feathered candidate; both use the same candidate UI, not the complete RC83 application bundle', originalSourceSHA256: digest(original),
       baselineSourceSHA256: digest(baseline), candidateSourceSHA256: digest(candidate) };
     report.variants = [];
     for (const variant of ['baseline', 'candidate']) {

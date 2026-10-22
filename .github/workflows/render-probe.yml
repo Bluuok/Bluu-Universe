@@ -26,6 +26,9 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Fetch frozen RC83 material for the bounded A/B
+        if: inputs.check == 'paint-surface'
+        run: git fetch --no-tags --depth=1 origin e326bc410bb369380a3717530819747f6ee93cda
       - run: node tests/browser-safety-check.mjs
       - name: Flight arrival CPU regression (no browser launch)
         run: |

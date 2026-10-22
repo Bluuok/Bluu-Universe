@@ -68,7 +68,7 @@ try {
       report: 'tests/remote-player.json', env: { GOAL_OUT: `${root}/player`, GOAL_REPORT: 'tests/remote-player.json' } },
     { id: 'continuous', name: 'three-continuous-visits', file: 'tests/goal-continuous-visit-review.mjs',
       report: 'tests/remote-continuous.json', env: { CONTINUOUS_OUT: `${root}/continuous`, CONTINUOUS_REPORT: 'tests/remote-continuous.json' } },
-    { id: 'faults', name: 'resource-failures', file: 'tests/goal-resource-failure-review.mjs', expectedCases: 7,
+    { id: 'faults', name: 'resource-failures', file: 'tests/goal-resource-failure-review.mjs', expectedCases: 8,
       report: 'tests/remote-resource-failures.json', env: { GOAL_FAULT_OUT: `${root}/resource-failures`, GOAL_FAULT_REPORT: 'tests/remote-resource-failures.json' } },
     { id: 'controls', name: 'game-controls', file: 'tests/game-controls-review.mjs', expectedChecks: 15,
       report: 'tests/remote-game-controls.json', env: { GAME_OUT: `${root}/controls`, GAME_REPORT: 'tests/remote-game-controls.json' } },
