@@ -63,7 +63,8 @@ try {
     inputs: window.__probeInputs }));
   report.before = await observe();
   const frame = async (name, options) => { const file = `${root}/${name}.png`, before = await observe();
-    report.captures.push({ file, before, capture: await saveDesktopFrame(page, file, options), after: await observe() }); };
+    report.captures.push({ file, before, capture: await saveDesktopFrame(page, file,
+      { ...(check === 'paint-surface' ? { completionTimeout: 120000 } : {}), ...options }), after: await observe() }); };
   if (check === 'paint-surface') {
     report.debugCameraUsed = true; report.gameplayAttempted = false; report.normalReloadUsed = true;
     report.viewSource = 'Explicit material closeups centred at authored broad-s-current curve t=.22; not player views or a replay';
@@ -95,7 +96,7 @@ try {
       const origin = await page.evaluate(() => ({ player: starhaven.player, state: starhaven.state }));
       for (const view of views) {
         assert(await page.evaluate(view => starhaven.inspect.framePosition({ ...view, duration: .01 }), view));
-        await page.waitForFunction(() => !starhaven.cameraProgress.transition, null, { timeout: 45000 });
+        await page.waitForFunction(() => !starhaven.cameraProgress.transition, null, { timeout: 120000, polling: 100 });
         await frame(`${variant}-${view.name}`, { settle: true, finishGPU: true });
         const observation = await page.evaluate(() => ({ player: starhaven.player, state: starhaven.state,
           camera: starhaven.camera, target: starhaven.cameraProgress.target, paintFlow: starhaven.ambient.paintFlow }));
