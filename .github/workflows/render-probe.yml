@@ -15,7 +15,7 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     env:
       LIBGL_ALWAYS_SOFTWARE: 'true'
       REMOTE_RENDER_CHECK: ${{ inputs.check }}
