@@ -11,7 +11,7 @@ import { preview } from 'vite';
 assert.equal(process.platform, 'linux', 'Remote desktop QA requires Linux');
 assert.equal(process.env.GITHUB_ACTIONS, 'true', 'Run through the explicit GitHub workflow');
 const requestedSuite = process.env.REMOTE_QA_SUITE || 'all';
-assert(['all', 'player', 'continuous', 'faults'].includes(requestedSuite));
+assert(['all', 'player', 'continuous', 'faults', 'controls'].includes(requestedSuite));
 const root = 'screenshots/remote-desktop';
 await mkdir(root, { recursive: true });
 const execute = promisify(execFile);
@@ -70,6 +70,8 @@ try {
       report: 'tests/remote-continuous.json', env: { CONTINUOUS_OUT: `${root}/continuous`, CONTINUOUS_REPORT: 'tests/remote-continuous.json' } },
     { id: 'faults', name: 'resource-failures', file: 'tests/goal-resource-failure-review.mjs', expectedCases: 7,
       report: 'tests/remote-resource-failures.json', env: { GOAL_FAULT_OUT: `${root}/resource-failures`, GOAL_FAULT_REPORT: 'tests/remote-resource-failures.json' } },
+    { id: 'controls', name: 'game-controls', file: 'tests/game-controls-review.mjs', expectedChecks: 15,
+      report: 'tests/remote-game-controls.json', env: { GAME_OUT: `${root}/controls`, GAME_REPORT: 'tests/remote-game-controls.json' } },
   ].filter(suite => requestedSuite === 'all' || suite.id === requestedSuite)) {
     const entry = { name: suite.name, report: suite.report, status: 'running' };
     report.suites.push(entry);
@@ -84,11 +86,13 @@ try {
         entry.status = result.status; entry.build = result.build;
         entry.completedRounds = (result.routes || result.rounds || []).filter(round => round.status === 'passed').length;
         if (suite.expectedCases) entry.completedCases = result.cases?.filter(item => item.status === 'passed').length;
+        if (suite.expectedChecks) entry.completedChecks = result.checks?.filter(item => item.status === 'passed').length;
         entry.trustedInputs = result.trustedInputs ?? result.routes?.reduce((n, route) => n + (route.trustedInputs || 0), 0);
       } else entry.status = 'missing-report';
     }
     assert.equal(entry.status, 'passed', `${suite.name} did not fully pass`);
     if (suite.expectedCases) assert.equal(entry.completedCases, suite.expectedCases);
+    else if (suite.expectedChecks) assert.equal(entry.completedChecks, suite.expectedChecks);
     else assert.equal(entry.completedRounds, 3);
     assert.equal(entry.recording.closed.code, 0, 'The independent recording must close cleanly');
     assert(entry.recording.media?.streams.some(stream => stream.width === 1600 && stream.height === 1100));
@@ -115,7 +119,7 @@ finally {
     (priority(a) < 0 ? 99 : priority(a)) - (priority(b) < 0 ? 99 : priority(b)));
   const clips = files.filter(file => file.endsWith('-preview.mp4'));
   let remaining = 24 * 1024 * 1024;
-  for (const file of ['tests/remote-desktop-summary.json', 'tests/remote-player.json', 'tests/remote-continuous.json', ...clips.map(file => `${root}/${file}`), ...pictures.map(file => `${root}/${file}`)]) {
+  for (const file of ['tests/remote-desktop-summary.json', 'tests/remote-player.json', 'tests/remote-continuous.json', 'tests/remote-resource-failures.json', 'tests/remote-game-controls.json', ...clips.map(file => `${root}/${file}`), ...pictures.map(file => `${root}/${file}`)]) {
     const bytes = await readFile(file).catch(() => null); if (!bytes) continue;
     const compressed = gzipSync(bytes);
     if (compressed.length > remaining) continue;

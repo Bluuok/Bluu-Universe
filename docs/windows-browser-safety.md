@@ -131,3 +131,7 @@ V51只改验收助手：近处两次停止后测量真实W移动／X刹停的位
 ### 同日RC83资源故障复验准备
 
 复用goal-resource-failure-review.mjs原七类案例：可选内容网络失败／非法JSON、角色模型缺失、背景分片缺失、颜料分片缺失、传输清单缺失、同长度背景分片篡改。改用既有desktopLaunchOptions与saveDesktopFrame；仍先经过browser-runtime.mjs的win32无条件阻断，再限定Linux且GITHUB_ACTIONS=true。修正waitForFunction的超时参数位置；每个失败案例保留异常及原图。remote-desktop-review新增faults分支，以七个成功案例计数，不能当作三次真实进出；沿用同一构建JS／CSS双哈希、X11录制、失败产物保存及普通GitHub runner。静态语法、64入口阻断与diff检查通过，尚无本轮浏览器故障通过记录。当前连续任务39703533043保持原提交运行；业务源码／资源／质量没有变化，本机浏览器／Linux／Docker、反重力与独立评审未启动、未部署。记录tests/v52-review.json。
+
+### 同日RC83完整键鼠专项准备
+
+game-controls-review.mjs复用原十五项可信键鼠检查，改用既有受保护Linux／GitHub入口、匹配浏览器及X11录制／取图，不启用Chromium screencast。原方向、速度、全圈相对转向、俯仰、鼠标增量对应、刹车／恢复、Esc、右键及左右键组合断言保留；W+D额外检查实际斜向。用真实速度／停止条件和两次实际动画帧回调替代固定几百毫秒的运动等待；这不能沿用原墙钟延迟结论，真实GPU手感仍未验收。失败也保存原输入／被动帧、原错误与原图。remote-desktop-review新增controls选项，以十五项检查计数，区别于三轮及七类故障，并补齐故障／键鼠JSON的日志证据白名单。已排队的故障任务固定5bd3345，仍将保留其原有artifact明细，不重启以采用新白名单。当前实飞39703533043和排队39704587320继续，暂不追加第三任务。仅语法、64入口阻断与diff检查通过，无新浏览器通过或独立评审；业务、素材和画质不变、本机浏览器／Linux／Docker未启动、未部署。记录tests/v53-review.json。
