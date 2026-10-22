@@ -8,6 +8,9 @@ import path from 'node:path';
 const url=process.env.GOAL_URL||'http://127.0.0.1:4259/',out=process.env.GOAL_OUT||'screenshots/v13-player-review';
 const file=process.env.GOAL_REPORT||'tests/v13-player-review.json';
 const flightTimeout=Number(process.env.GOAL_FLIGHT_TIMEOUT_MS||60000),contactTimeout=Number(process.env.GOAL_CONTACT_TIMEOUT_MS||7000);
+const selectedRoute=process.env.GOAL_PLAYER_ROUTE;
+assert(!selectedRoute||['1','2','3'].includes(selectedRoute),'Unknown original player route');
+const routeIds=selectedRoute?[Number(selectedRoute)]:[1,2,3];
 await mkdir(out,{recursive:true});
 const browser=await chromium.launch(desktopLaunchOptions);
 const context=await browser.newContext({viewport:{width:1440,height:960}});
@@ -16,6 +19,8 @@ await context.addInitScript(()=>{window.__goalInputs=[];window.__goalSamples=[];
   function sample(now){const a=window.starhaven;if(a?.ready&&now-previous>120){previous=now;window.__goalSamples.push({time:now,state:a.state,player:a.player,keys:a.keys,camera:a.camera,avoidance:a.framing?.avoidance,contacts:a.inspect.collision().lastSolve?.contacts});}requestAnimationFrame(sample);}requestAnimationFrame(sample);
 });
 const report={startedAt:new Date().toISOString(),method:'Three normal-reload routes, trusted keyboard/mouse and visible controls. Existing room-flight-route helpers are used directly. Evaluation only reads telemetry or passive event logs; no product pose/state/camera fixtures.',environment:{platform:process.platform,executable:chromium.executablePath(),launchOptions:desktopLaunchOptions},url,routes:[],runtimeErrors:[],requestFailures:[]};
+report.requestedRoutes=routeIds;
+if(selectedRoute)report.method=`Original route ${selectedRoute} in isolation; trusted keyboard/mouse, original path and contact assertions, no product pose/state/camera writes. Not three-route acceptance.`;
 let page,current;
 const observe=()=>page.evaluate(()=>({state:starhaven.state,player:starhaven.player,velocity:starhaven.velocity,flight:starhaven.flight,camera:starhaven.camera,framing:starhaven.framing,room:starhaven.inspect.roomEntities(),collision:starhaven.inspect.collision(),rendering:starhaven.rendering,project:starhaven.currentProject}));
 async function save(){await writeFile(file,JSON.stringify(report,null,2)+'\n');}
@@ -50,8 +55,8 @@ async function room(projects){
   current.departure=await departAfterExit(page,{timeout:contactTimeout});assert.equal((await observe()).state,'SPACE');await shot('outward-departure');
 }
 try{
-  for(let id=1;id<=3;id++){
-    current={id,status:'running',startedAt:new Date().toISOString(),steps:[],contacts:[]};report.routes.push(current);page=await context.newPage();
+  for(const id of routeIds){
+    current={id,status:'running',startedAt:new Date().toISOString(),steps:[],contacts:[]};report.routes.push(current);page=await context.newPage();page.setDefaultTimeout(contactTimeout);
     page.on('pageerror',e=>report.runtimeErrors.push({route:id,message:e.message}));page.on('console',m=>{if(m.type()==='error')report.runtimeErrors.push({route:id,message:m.text()});});page.on('requestfailed',r=>report.requestFailures.push({route:id,url:r.url(),error:r.failure()?.errorText}));
     await page.goto(url,{waitUntil:'networkidle'});
     const build=await runtimeBuildIdentity(page);if(report.build)assert.deepEqual(build,report.build);else report.build=build;
@@ -79,6 +84,6 @@ try{
     }
     current.inputs=await page.evaluate(()=>window.__goalInputs);current.samples=await page.evaluate(()=>window.__goalSamples);assert.ok(current.inputs.every(e=>e.trusted));current.trustedInputs=current.inputs.length;current.status='passed';current.finishedAt=new Date().toISOString();current.video=process.env.REMOTE_SCREEN_RECORDING||null;await page.close();await save();
   }
-  assert.equal(report.routes.filter(r=>r.status==='passed').length,3);assert.deepEqual(report.runtimeErrors,[]);report.status=report.requestFailures.length?'completed-with-request-diagnostics':'passed';
+  assert.equal(report.routes.filter(r=>r.status==='passed').length,routeIds.length);assert.deepEqual(report.routes.map(r=>r.id),routeIds);assert.deepEqual(report.runtimeErrors,[]);report.status=report.requestFailures.length?'completed-with-request-diagnostics':'passed';
 }catch(e){report.status='failed';report.failure={message:e.message,stack:e.stack};if(current)current.status='failed';if(page&&!page.isClosed()){current.inputs=await page.evaluate(()=>window.__goalInputs).catch(()=>[]);current.samples=await page.evaluate(()=>window.__goalSamples).catch(()=>[]);current.failureContext=await page.evaluate(()=>({url:location.href,appPresent:Boolean(window.starhaven),ready:window.starhaven?.ready??false,loading:document.getElementById('loading')?.innerText,resources:performance.getEntriesByType('resource').length})).catch(()=>null);current.failureScreenshot=path.join(out,`route-${current.id}-failure.png`);await saveDesktopFrame(page,current.failureScreenshot).catch(error=>{current.failureCaptureError=error.message;});}process.exitCode=1;}
 finally{await context.close();await browser.close();report.browserClosed=true;report.finishedAt=new Date().toISOString();await save();console.log(JSON.stringify({status:report.status,failure:report.failure?.message,routes:report.routes.map(r=>({id:r.id,status:r.status,steps:r.steps.length,inputs:r.inputs?.length})),errors:report.runtimeErrors.length,requests:report.requestFailures.length,browserClosed:true}));}
