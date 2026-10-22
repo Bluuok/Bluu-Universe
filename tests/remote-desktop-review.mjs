@@ -11,7 +11,7 @@ import { preview } from 'vite';
 assert.equal(process.platform, 'linux', 'Remote desktop QA requires Linux');
 assert.equal(process.env.GITHUB_ACTIONS, 'true', 'Run through the explicit GitHub workflow');
 const requestedSuite = process.env.REMOTE_QA_SUITE || 'all';
-assert(['all', 'player', 'continuous'].includes(requestedSuite));
+assert(['all', 'player', 'continuous', 'faults'].includes(requestedSuite));
 const root = 'screenshots/remote-desktop';
 await mkdir(root, { recursive: true });
 const execute = promisify(execFile);
@@ -68,6 +68,8 @@ try {
       report: 'tests/remote-player.json', env: { GOAL_OUT: `${root}/player`, GOAL_REPORT: 'tests/remote-player.json' } },
     { id: 'continuous', name: 'three-continuous-visits', file: 'tests/goal-continuous-visit-review.mjs',
       report: 'tests/remote-continuous.json', env: { CONTINUOUS_OUT: `${root}/continuous`, CONTINUOUS_REPORT: 'tests/remote-continuous.json' } },
+    { id: 'faults', name: 'resource-failures', file: 'tests/goal-resource-failure-review.mjs', expectedCases: 7,
+      report: 'tests/remote-resource-failures.json', env: { GOAL_FAULT_OUT: `${root}/resource-failures`, GOAL_FAULT_REPORT: 'tests/remote-resource-failures.json' } },
   ].filter(suite => requestedSuite === 'all' || suite.id === requestedSuite)) {
     const entry = { name: suite.name, report: suite.report, status: 'running' };
     report.suites.push(entry);
@@ -81,11 +83,13 @@ try {
       if (result) {
         entry.status = result.status; entry.build = result.build;
         entry.completedRounds = (result.routes || result.rounds || []).filter(round => round.status === 'passed').length;
+        if (suite.expectedCases) entry.completedCases = result.cases?.filter(item => item.status === 'passed').length;
         entry.trustedInputs = result.trustedInputs ?? result.routes?.reduce((n, route) => n + (route.trustedInputs || 0), 0);
       } else entry.status = 'missing-report';
     }
     assert.equal(entry.status, 'passed', `${suite.name} did not fully pass`);
-    assert.equal(entry.completedRounds, 3);
+    if (suite.expectedCases) assert.equal(entry.completedCases, suite.expectedCases);
+    else assert.equal(entry.completedRounds, 3);
     assert.equal(entry.recording.closed.code, 0, 'The independent recording must close cleanly');
     assert(entry.recording.media?.streams.some(stream => stream.width === 1600 && stream.height === 1100));
     if (report.build) assert.deepEqual(entry.build, report.build);
