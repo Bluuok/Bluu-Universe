@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 export const paintComponents=[
   {id:'production',patches:[]},
   {id:'no-atlas',patches:[
-    ['dab=oilPrint(paintUV,1.65*oilStrokeScale,5.);','dab=vec4(0.);'],
-    ['under=oilPrint(paintUV+vec2(.31,.035),.85*oilStrokeScale,3.);','under=vec4(0.);']]},
+    ['dab=oilPrint(paintUV,1.65*oilStrokeScale,23.);','dab=vec4(0.);'],
+    ['under=oilPrint(paintUV+vec2(.31,.035),.85*oilStrokeScale,11.);','under=vec4(0.);']]},
   {id:'no-relief',patches:[['float relief=(dab.r*dab.g+under.r*under.g*.45)*oilRelief+sourceGrain*.001;','float relief=0.;']]},
   {id:'no-source',patches:[['sourceGrain=sourcePaint(paintPosition.yz)*paintWeights.x+sourcePaint(paintPosition.zx+7.3)*paintWeights.y+sourcePaint(paintPosition.xy+3.1)*paintWeights.z;','sourceGrain=.25;']]},
 ];
