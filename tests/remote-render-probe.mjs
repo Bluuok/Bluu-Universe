@@ -8,21 +8,23 @@ import { gzipSync } from 'node:zlib';
 import assert from 'node:assert/strict';
 import { flyTo } from './room-flight-route.mjs';
 import { execFileSync } from 'node:child_process';
+import { paintComponents, componentFieldSource } from './paint-component-variants.mjs';
 
 assert.equal(process.platform, 'linux');
 assert.equal(process.env.GITHUB_ACTIONS, 'true');
 assert.equal(process.env.LIBGL_ALWAYS_SOFTWARE, 'true');
 const check = process.env.REMOTE_RENDER_CHECK || 'opengl';
-assert(['opengl', 'ui-surface', 'arrival', 'paint-surface'].includes(check));
+assert(['opengl', 'ui-surface', 'arrival', 'paint-surface', 'paint-components'].includes(check));
+const paintCheck=['paint-surface','paint-components'].includes(check),components=check==='paint-components';
 const paintBaselineRef='e326bc410bb369380a3717530819747f6ee93cda';
 const paintSourceFile='src/scenes/sky/VortexPaintMaterial.js';
 const root = `screenshots/remote-desktop/render-probe/${check}`;
 await mkdir(root, { recursive: true });
 const report = { started: new Date().toISOString(), commit: process.env.GITHUB_SHA,
-  check, scope: check === 'paint-surface'
+  check, scope: paintCheck
     ? 'Material A/B diagnostic: explicit inspection camera, normal reload, temporary CI source patch; zero gameplay acceptance'
     : 'Bounded renderer/UI diagnostic; no quality or product-state writes; not three-round acceptance',
-  windowsBrowserStarted: false, completedRounds: 0, errors: [], captures: [] };
+  windowsBrowserStarted: false, completedRounds: 0, errors: [], requestFailures: [], captures: [] };
 let server, browser, page, observe, restoreSource;
 try {
   // Compare the actual frozen RC83 material source with the new material.
@@ -44,6 +46,7 @@ try {
   browser = await chromium.launch(report.launchOptions);
   page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
   page.on('pageerror', error => report.errors.push(error.message));
+  page.on('requestfailed',request=>report.requestFailures.push({url:request.url(),error:request.failure()?.errorText}));
   await page.addInitScript(() => {
     window.__probeFrames = []; window.__probeInputs = [];
     for (const type of ['keydown', 'keyup', 'pointerdown', 'pointerup', 'pointermove'])
@@ -64,8 +67,8 @@ try {
   report.before = await observe();
   const frame = async (name, options) => { const file = `${root}/${name}.png`, before = await observe();
     report.captures.push({ file, before, capture: await saveDesktopFrame(page, file,
-      { ...(check === 'paint-surface' ? { completionTimeout: 120000 } : {}), ...options }), after: await observe() }); };
-  if (check === 'paint-surface') {
+      { ...(paintCheck ? { completionTimeout: 120000 } : {}), ...options }), after: await observe() }); };
+  if (paintCheck) {
     report.debugCameraUsed = true; report.gameplayAttempted = false; report.normalReloadUsed = true;
     report.viewSource = 'Explicit material closeups centred at authored broad-s-current curve t=.22; not player views or a replay';
     const { CatmullRomCurve3, Vector3 } = await import('three');
@@ -75,23 +78,25 @@ try {
     const views = [
       { name: 's-pigment-front', position: centre.clone().add(new Vector3(0, 0, 15)).toArray(), target: centre.toArray() },
       { name: 's-pigment-back', position: centre.clone().add(new Vector3(0, 0, -15)).toArray(), target: centre.toArray() },
-    ];
-    const sourceFile=paintSourceFile,baseline=await readFile(sourceFile,'utf8'),original=restoreSource.text,candidate=original,
+    ].filter(view=>!components||view.name==='s-pigment-back');
+    const sourceFile=components?'src/scenes/sky/PaintFlowField.js':paintSourceFile,baseline=await readFile(sourceFile,'utf8'),original=components?baseline:restoreSource.text,candidate=original,
       digest=text=>createHash('sha256').update(text).digest('hex');
-    report.surfacePatch = { file: sourceFile, baselineRef:paintBaselineRef, surface:PaintFlowManifest.surface,
-      scope:'Frozen RC83 material source versus feathered candidate; both use the same candidate UI, not the complete RC83 application bundle', originalSourceSHA256: digest(original),
-      baselineSourceSHA256: digest(baseline), candidateSourceSHA256: digest(candidate) };
+    report.surfacePatch = { file: sourceFile, baselineRef:components?process.env.GITHUB_SHA:paintBaselineRef, surface:PaintFlowManifest.surface,
+      scope:components?'Current production versus individual flow-only atlas, relief and source-pigment ablations; diagnostic only, not proposed materials':'Frozen RC83 material source versus candidate; both use the same candidate UI, not the complete RC83 application bundle', originalSourceSHA256: digest(original),
+      baselineSourceSHA256: digest(baseline), ...(!components?{candidateSourceSHA256:digest(candidate)}:{disposableCIOnly:true,alteredBuildsAreNotProduction:true}) };
     report.variants = [];
-    for (const variant of ['baseline', 'candidate']) {
-      if (variant === 'candidate') {
+    for (const mode of components?paintComponents:[{id:'baseline'},{id:'candidate'}]) {
+      const variant=mode.id;
+      if (variant !== 'baseline'&&variant!=='production') {
         restoreSource = { file: sourceFile, text: original };
-        await writeFile(sourceFile, candidate);
+        await writeFile(sourceFile, components?componentFieldSource(original,mode):candidate);
         await build();
         await page.reload({ waitUntil: 'domcontentloaded', timeout: 45000 });
         await page.waitForFunction(() => window.starhaven?.ready, null, { timeout: 120000 });
       }
       await page.locator('#loading').waitFor({ state: 'hidden', timeout: 30000 });
       const entry = { variant, build: await runtimeBuildIdentity(page), views: [] };
+      if(components){entry.shaderOverrides=mode.patches;entry.fieldSourceSHA256=digest(componentFieldSource(original,mode));}
       report.variants.push(entry);
       const origin = await page.evaluate(() => ({ player: starhaven.player, state: starhaven.state }));
       for (const view of views) {
@@ -106,6 +111,9 @@ try {
       }
     }
     assert.notEqual(report.variants[0].build.sha256, report.variants[1].build.sha256);
+    assert.deepEqual(report.variants[0].build,report.build);
+    assert.equal(new Set(report.variants.map(v=>v.build.sha256)).size,report.variants.length);
+    assert(report.variants.every(v=>v.build.cssSHA256===report.variants[0].build.cssSHA256));
     assert.equal(report.variants[0].build.cssSHA256, report.variants[1].build.cssSHA256);
     assert.deepEqual(report.errors, []);
   } else if (check === 'arrival') {
