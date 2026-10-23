@@ -54,7 +54,11 @@ try {
   page.on('pageerror', error => report.errors.push(error.message));
   page.on('requestfailed',request=>report.requestFailures.push({url:request.url(),error:request.failure()?.errorText}));
   await page.addInitScript(() => {
-    window.__probeFrames = []; window.__probeInputs = [];
+    window.__probeFrames = []; window.__probeInputs = []; window.__probeContextMenus = [];
+    document.addEventListener('contextmenu', event => window.__probeContextMenus.push({
+      target: event.target.id || event.target.tagName, prevented: event.defaultPrevented,
+      trusted: event.isTrusted, time: performance.now(),
+    }));
     for (const type of ['keydown', 'keyup', 'pointerdown', 'pointerup', 'pointermove'])
       addEventListener(type, event => window.__probeInputs.push({ type, code: event.code, trusted: event.isTrusted, time: performance.now() }), true);
     const sample = time => { if (window.starhaven?.ready) window.__probeFrames.push(time); requestAnimationFrame(sample); };
@@ -89,12 +93,20 @@ try {
         await page.reload({waitUntil:'domcontentloaded',timeout:45000});
         await page.waitForFunction(()=>window.starhaven?.ready,null,{timeout:120000});
       }
+      // ready precedes removal of the loading layer. Do not right-click that
+      // still-interactive layer and leave a native browser menu over every PNG.
+      await page.locator('#loading').waitFor({state:'hidden',timeout:30000});
       const entry={variant,build:await runtimeBuildIdentity(page),views:[]};report.variants.push(entry);
       for(const view of views){
         assert(await page.evaluate(v=>starhaven.inspect.placeFlightFixture({position:v.position,yaw:v.yaw}),view));
+        const hit=await page.evaluate(()=>document.elementFromPoint(innerWidth/2,innerHeight/2)?.id);
+        assert.equal(hit,'world','RMB activation must hit the actual flight canvas');
         // Activate real heading follow; pose placement alone does not activate
         // the pilot. Opposite RMB deltas restore the requested heading.
         await lookBy(page,1,0);await lookBy(page,-1,0);
+        entry.contextMenus=await page.evaluate(()=>window.__probeContextMenus);
+        assert(entry.contextMenus.every(event=>event.target==='world'&&event.prevented&&event.trusted),
+          'Native context menu was not prevented on the flight canvas');
         await page.waitForFunction(({p,d})=>{
           const a=starhaven,f=a.framing;
           return a.state==='SPACE'&&!a.cameraProgress.transition&&f.navigationMode==='CHARACTER_FOLLOW'&&
