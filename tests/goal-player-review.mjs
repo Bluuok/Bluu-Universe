@@ -4,6 +4,8 @@ import {flyTo,flyIntoRoom,faceHeading,departAfterExit} from './room-flight-route
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import {attributeStaticContact} from './static-contact-attribution.mjs';
+import {CollisionManifest} from '../src/config/CollisionManifest.js';
 
 const url=process.env.GOAL_URL||'http://127.0.0.1:4259/',out=process.env.GOAL_OUT||'screenshots/v13-player-review';
 const file=process.env.GOAL_REPORT||'tests/v13-player-review.json';
@@ -38,16 +40,32 @@ async function face(yaw,pitch=0){
   }throw Error('Actual pointer turn failed to converge');
 }
 async function contact(key,normal,name){
+  const rail=name==='rail-body-contact',started=Date.now();let after=0,body;
   await page.keyboard.down(key);
-  // Static proxies are intentionally merged into one BVH. Confirm its real
-  // contact normal at the physically reached wall/rail/roof, not a mesh name
-  // that the merged solver never exposes.
-  try{const handle=await page.waitForFunction(expected=>{const a=starhaven,c=a.inspect.collision().lastSolve;return c?.contacts.some(h=>h.collider==='studio-static'&&h.normal.reduce((s,v,i)=>s+v*expected[i],0)>.7)?{player:a.player,solve:c,avoidance:a.framing?.avoidance}:false;},normal,{timeout:contactTimeout});const body=await handle.jsonValue();current.contacts.push({name,expectedNormal:normal,body});if(name==='left-wall-body-contact')assert.ok(body.player[0]<-5.8);if(name==='back-wall-body-contact')assert.ok(body.player[2]<-5.4);if(name==='rail-body-contact')assert.ok(body.player[2]>6.7);if(name==='roof-body-contact')assert.ok(body.player[1]>6.2);}
+  try{
+    while(!body){
+      const remaining=contactTimeout-(Date.now()-started);assert(remaining>0,'Named body contact timed out');
+      const handle=await page.waitForFunction(({expected,rail,after})=>{const a=starhaven,t=a.inspect.collision(),c=t.lastSolve;
+        return t.solveCount>after&&c?.contacts.some(h=>h.collider==='studio-static'&&(rail?a.player[2]>6.7:h.normal.reduce((s,v,i)=>s+v*expected[i],0)>.7))?
+          {player:a.player,velocity:a.velocity,solve:c,count:t.solveCount,avoidance:a.framing?.avoidance}:false;
+      },{expected:normal,rail,after},{timeout:remaining});
+      const candidate=await handle.jsonValue();await handle.dispose();after=candidate.count;
+      if(rail){
+        const ids=CollisionManifest.static.filter(p=>p.id.startsWith('terrace-rail-front-left-')).map(p=>p.id);
+        candidate.attribution=attributeStaticContact(candidate.solve,ids);
+        if(!candidate.attribution.matched)continue;
+        assert(candidate.solve.contacts.every(c=>c.normal.reduce((sum,v,i)=>sum+v*candidate.velocity[i],0)>-1e-6),'Velocity still enters the actual contacted surface');
+      }
+      body=candidate;
+    }
+    current.contacts.push({name,expectedNormal:normal,normalCheck:rail?'Actual attributed rail surface; not a flat-wall normal':'Outward normal dot > .7',body});
+    if(name==='left-wall-body-contact')assert.ok(body.player[0]<-5.8);if(name==='back-wall-body-contact')assert.ok(body.player[2]<-5.4);if(rail)assert.ok(body.player[2]>6.7);if(name==='roof-body-contact')assert.ok(body.player[1]>6.2);
+  }
   finally{await page.keyboard.up(key);}
   await page.mouse.move(720,480);await page.waitForTimeout(500);await shot(name);
 }
 async function room(projects){
-  await flyIntoRoom(page,{timeout:flightTimeout});await page.waitForTimeout(800);assert.equal((await observe()).state,'ROOM');await shot('room');
+  current.entryRoute=await flyIntoRoom(page,{timeout:flightTimeout});await page.waitForTimeout(800);assert.equal((await observe()).state,'ROOM');await shot('room');
   const entities=(await observe()).room;current.roomBefore=entities;
   for(const id of projects){await page.locator(`#hotspots [data-exhibit="${id}"]`).click();await page.waitForFunction(project=>starhaven.book.status==='open'&&starhaven.currentProject===project,id,{timeout:contactTimeout});assert.equal((await observe()).project,id);await shot('project-'+id);await page.locator('#project-back').click();await page.waitForFunction(()=>starhaven.state==='ROOM'&&!starhaven.cameraProgress.transition,null,{timeout:contactTimeout});assert.equal((await observe()).state,'ROOM');}
   current.roomAfter=(await observe()).room;

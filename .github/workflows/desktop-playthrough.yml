@@ -44,6 +44,8 @@ jobs:
           ARRIVAL_CPU_FRAME_MS=5000 node tests/room-flight-arrival-cpu.mjs
           ARRIVAL_CPU_SCENARIO=roof ARRIVAL_CPU_FRAME_MS=5000 ARRIVAL_CPU_IO_MS=1000 ARRIVAL_CPU_TIMEOUT_MS=600000 node tests/room-flight-arrival-cpu.mjs
           ARRIVAL_CPU_SCENARIO=doorway ARRIVAL_CPU_FRAME_MS=5000 ARRIVAL_CPU_IO_MS=1000 ARRIVAL_CPU_TIMEOUT_MS=600000 node tests/room-flight-arrival-cpu.mjs
+          node tests/room-entry-arrival-cpu.mjs
+          node tests/static-contact-attribution-cpu.mjs
       - run: npm run build
       - name: Install matched Linux Chromium
         run: npx playwright install --with-deps chromium

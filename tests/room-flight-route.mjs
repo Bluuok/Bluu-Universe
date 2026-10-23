@@ -1,4 +1,5 @@
 // Shared browser route: trusted input only, no product fixtures or teleport.
+const unexpectedFlightState=(message,state)=>Object.assign(Error(message+state),{code:'FLIGHT_LEFT_SPACE',flightState:state});
 export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false,timeout=45000,pulseNear=false}={}){
   const started=Date.now(),held=new Set(),trace=[],wrap=v=>Math.atan2(Math.sin(v),Math.cos(v));
   let wasMoving=false,nearStops=0,nearStride=0,primaryError;
@@ -12,7 +13,7 @@ export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false
       const s=await page.evaluate(()=>({state:starhaven.state,p:starhaven.player,v:starhaven.velocity,f:starhaven.flight}));
       if(!trace.length||Date.now()-trace.at(-1).at>600)trace.push({at:Date.now(),p:s.p,v:s.v,yaw:s.f.yaw,pitch:s.f.pitch,needsCenter:s.f.needsCenter,paused:s.f.paused});
       if(enter&&s.state!=='SPACE'){await keys([]);await center();if(!stopOnCross)await page.waitForFunction(()=>starhaven.state==='ROOM'&&!starhaven.cameraProgress.transition,{},{timeout:Math.max(15000,timeout)});return;}
-      if(s.state!=='SPACE')throw Error('Flight route left SPACE unexpectedly: '+s.state);
+      if(s.state!=='SPACE')throw unexpectedFlightState('Flight route left SPACE unexpectedly: ',s.state);
       const d=target.map((v,i)=>v-s.p[i]),distance=Math.hypot(...d),speed=Math.hypot(...s.v);
       if(speed>.15)wasMoving=true;
       else if(wasMoving){wasMoving=false;if(distance<3)nearStops++;}
@@ -24,7 +25,7 @@ export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false
           {timeout:Math.max(1,timeout-(Date.now()-started))});
         await keys([]);
         const stopped=await page.evaluate(()=>({state:starhaven.state,p:starhaven.player}));
-        if(stopped.state!=='SPACE')throw Error('Braking left SPACE unexpectedly: '+stopped.state);
+        if(stopped.state!=='SPACE')throw unexpectedFlightState('Braking left SPACE unexpectedly: ',stopped.state);
         // Crossing the radius before braking is not arrival. Correct any real
         // inertial overshoot using the same keyboard/mouse feedback loop.
         if(Math.hypot(...target.map((v,i)=>v-stopped.p[i]))>=radius)continue;
@@ -39,7 +40,7 @@ export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false
         await page.waitForFunction(()=>starhaven.state!=='SPACE'||Math.hypot(...starhaven.velocity)<.15,null,
           {timeout:Math.max(1,timeout-(Date.now()-started))});
         const before=await page.evaluate(()=>({state:starhaven.state,p:starhaven.player}));
-        if(before.state!=='SPACE')throw Error('Measured approach left SPACE unexpectedly: '+before.state);
+        if(before.state!=='SPACE')throw unexpectedFlightState('Measured approach left SPACE unexpectedly: ',before.state);
         const aim=target.map((v,i)=>v-before.p[i]),remaining=Math.hypot(...aim);
         if(remaining<radius)continue;
         // A perpendicular step makes room for a subsequent direct approach
@@ -56,7 +57,7 @@ export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false
           {timeout:Math.max(1,timeout-(Date.now()-started))});
         await keys([]);
         const after=await page.evaluate(()=>({state:starhaven.state,p:starhaven.player}));
-        if(after.state!=='SPACE')throw Error('Measured approach left SPACE unexpectedly: '+after.state);
+        if(after.state!=='SPACE')throw unexpectedFlightState('Measured approach left SPACE unexpectedly: ',after.state);
         nearStride=Math.hypot(...after.p.map((v,i)=>v-before.p[i]));
         trace.push({at:Date.now(),action:'real-measured-approach',sideways,from:before.p,to:after.p,stride:nearStride});
         continue;
@@ -86,7 +87,7 @@ export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false
           await page.waitForFunction(()=>starhaven.state!=='SPACE'||Math.hypot(...starhaven.velocity)<.15,null,
             {timeout:Math.max(1,timeout-(Date.now()-started))});
           const stopped=await page.evaluate(()=>({state:starhaven.state,p:starhaven.player,f:starhaven.flight}));
-          if(stopped.state!=='SPACE')throw Error('Steering brake left SPACE unexpectedly: '+stopped.state);
+          if(stopped.state!=='SPACE')throw unexpectedFlightState('Steering brake left SPACE unexpectedly: ',stopped.state);
           const aim=target.map((v,i)=>v-stopped.p[i]);
           await lookBy(page,-wrap(Math.atan2(-aim[0],-aim[2])-stopped.f.yaw)/stopped.f.lookSensitivity,
             -(Math.max(-1.3,Math.min(1.3,Math.atan2(aim[1],Math.hypot(aim[0],aim[2]))))-stopped.f.pitch)/stopped.f.lookSensitivity);
@@ -119,8 +120,20 @@ export async function flyTo(page,target,{radius=.5,enter=false,stopOnCross=false
   }
 }
 export async function flyIntoRoom(page,options={}){
-  await flyTo(page,[1.35,1.8,11],{...options,radius:.45});
+  const before=await page.evaluate(()=>({state:starhaven.state,passage:starhaven.passage}));
+  if(before.state!=='SPACE')throw Error('Entry route must start outside');
+  let approach;
+  try{approach=await flyTo(page,[1.35,1.8,11],{...options,radius:.45});}
+  catch(error){
+    if(error.code!=='FLIGHT_LEFT_SPACE'||!['DOCKING','ROOM'].includes(error.flightState))throw error;
+    const reached=await page.evaluate(()=>({state:starhaven.state,passage:starhaven.passage}));
+    if(!['DOCKING','ROOM'].includes(reached.state)||reached.passage.entries!==before.passage.entries+1||reached.passage.exits!==before.passage.exits||
+      (reached.state==='DOCKING'&&reached.passage.phase!=='approach'))throw error;
+    await page.waitForFunction(()=>starhaven.state==='ROOM'&&!starhaven.cameraProgress.transition,null,{timeout:options.timeout||45000});
+    return {entryDuringApproach:true,approachAnchorReached:false,passage:reached.passage};
+  }
   await flyTo(page,[1.35,1.15,6.2],{...options,enter:true});
+  return {entryDuringApproach:false,approachAnchorReached:true,approach};
 }
 
 // A short key tap can fall entirely between software-rendered frames. Keep
