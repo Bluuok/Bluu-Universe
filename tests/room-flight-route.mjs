@@ -125,10 +125,11 @@ export async function flyIntoRoom(page,options={}){
   let approach;
   try{approach=await flyTo(page,[1.35,1.8,11],{...options,radius:.45});}
   catch(error){
-    if(error.code!=='FLIGHT_LEFT_SPACE'||!['DOCKING','ROOM'].includes(error.flightState))throw error;
+    if(error.code!=='FLIGHT_LEFT_SPACE'||!['DOCKING','TRANSITION','ROOM'].includes(error.flightState))throw error;
     const reached=await page.evaluate(()=>({state:starhaven.state,passage:starhaven.passage}));
-    if(!['DOCKING','ROOM'].includes(reached.state)||reached.passage.entries!==before.passage.entries+1||reached.passage.exits!==before.passage.exits||
-      (reached.state==='DOCKING'&&reached.passage.phase!=='approach'))throw error;
+    if(!['DOCKING','TRANSITION','ROOM'].includes(reached.state)||reached.passage.entries!==before.passage.entries+1||reached.passage.exits!==before.passage.exits||
+      (reached.state==='DOCKING'&&reached.passage.phase!=='approach')||
+      (reached.state==='TRANSITION'&&reached.passage.phase!=='reveal'))throw error;
     await page.waitForFunction(()=>starhaven.state==='ROOM'&&!starhaven.cameraProgress.transition,null,{timeout:options.timeout||45000});
     return {entryDuringApproach:true,approachAnchorReached:false,passage:reached.passage};
   }

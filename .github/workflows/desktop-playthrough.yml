@@ -7,7 +7,7 @@ on:
         description: Existing route suite to run
         type: choice
         default: all
-        options: [all, continuous, player, faults, controls, contacts]
+        options: [all, continuous, player, faults, controls, contacts, glass]
 
 permissions:
   contents: read
@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: ${{ fromJSON(inputs.suite == 'continuous' && '["continuous"]' || inputs.suite == 'player' && '["player"]' || inputs.suite == 'faults' && '["faults"]' || inputs.suite == 'controls' && '["controls"]' || inputs.suite == 'contacts' && '["wall-rail","roof"]' || '["continuous","player","faults","controls"]') }}
+        suite: ${{ fromJSON(inputs.suite == 'continuous' && '["continuous"]' || inputs.suite == 'player' && '["player"]' || inputs.suite == 'faults' && '["faults"]' || inputs.suite == 'controls' && '["controls"]' || inputs.suite == 'contacts' && '["wall-rail","roof"]' || inputs.suite == 'glass' && '["glass"]' || '["continuous","player","faults","controls"]') }}
     env:
       REMOTE_QA_SUITE: ${{ matrix.suite }}
       GOAL_FLIGHT_TIMEOUT_MS: '600000'
@@ -46,6 +46,7 @@ jobs:
           ARRIVAL_CPU_SCENARIO=doorway ARRIVAL_CPU_FRAME_MS=5000 ARRIVAL_CPU_IO_MS=1000 ARRIVAL_CPU_TIMEOUT_MS=600000 node tests/room-flight-arrival-cpu.mjs
           node tests/room-entry-arrival-cpu.mjs
           node tests/static-contact-attribution-cpu.mjs
+          node tests/glass-contact-route-cpu.mjs
       - run: npm run build
       - name: Install matched Linux Chromium
         run: npx playwright install --with-deps chromium
