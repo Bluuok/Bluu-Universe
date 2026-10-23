@@ -11,7 +11,7 @@ import { preview } from 'vite';
 assert.equal(process.platform, 'linux', 'Remote desktop QA requires Linux');
 assert.equal(process.env.GITHUB_ACTIONS, 'true', 'Run through the explicit GitHub workflow');
 const requestedSuite = process.env.REMOTE_QA_SUITE || 'all';
-assert(['all', 'player', 'continuous', 'faults', 'controls', 'wall-rail', 'roof', 'glass'].includes(requestedSuite));
+assert(['all', 'player', 'distant', 'continuous', 'faults', 'controls', 'wall-rail', 'roof', 'glass'].includes(requestedSuite));
 const root = 'screenshots/remote-desktop';
 await mkdir(root, { recursive: true });
 const execute = promisify(execFile);
@@ -66,6 +66,10 @@ try {
   for (const suite of [
     { id: 'player', name: 'three-normal-routes', file: 'tests/goal-player-review.mjs',
       report: 'tests/remote-player.json', env: { GOAL_OUT: `${root}/player`, GOAL_REPORT: 'tests/remote-player.json' } },
+    // Keep the original distant route intact, but give it its own existing
+    // child budget instead of sharing 60 minutes with both contact routes.
+    { id: 'distant', name: 'original-distant-route', file: 'tests/goal-player-review.mjs', route: 1, expectedRounds: 1,
+      report: 'tests/remote-distant.json', env: { GOAL_PLAYER_ROUTE: '1', GOAL_OUT: `${root}/distant`, GOAL_REPORT: 'tests/remote-distant.json' } },
     { id: 'wall-rail', name: 'original-wall-rail-route', file: 'tests/goal-player-review.mjs', route: 2, expectedRounds: 1,
       report: 'tests/remote-wall-rail.json', env: { GOAL_PLAYER_ROUTE: '2', GOAL_OUT: `${root}/wall-rail`, GOAL_REPORT: 'tests/remote-wall-rail.json' } },
     { id: 'roof', name: 'original-roof-route', file: 'tests/goal-player-review.mjs', route: 3, expectedRounds: 1,
