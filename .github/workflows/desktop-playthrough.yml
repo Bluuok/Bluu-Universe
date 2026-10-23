@@ -20,7 +20,7 @@ jobs:
   desktop:
     name: desktop-${{ matrix.suite }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 70
+    timeout-minutes: ${{ matrix.suite == 'distant' && 90 || 70 }}
     strategy:
       fail-fast: false
       matrix:

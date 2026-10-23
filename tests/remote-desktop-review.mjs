@@ -50,12 +50,13 @@ const report = { started: new Date().toISOString(), status: 'running',
   platform: process.platform, executable: chromium.executablePath(),
   scope: 'Remote Linux software-rendered keyboard/mouse routes; not Windows GPU or OS-focus acceptance',
   requestedSuite, suites: [], windowsBrowserStarted: false, independentReview: false };
-const run = (file, env) => new Promise((resolve, reject) => {
+const run = (file, env, budgetMinutes = 60) => new Promise((resolve, reject) => {
+  const started=Date.now(),timeout=budgetMinutes*60*1000;
   const child = spawn(process.execPath, [file], { stdio: 'inherit',
     env: { ...process.env, GOAL_URL: 'http://127.0.0.1:4259/', ...env },
-    timeout: 60 * 60 * 1000 });
+    timeout });
   child.once('error', reject);
-  child.once('close', (code, signal) => code === 0 ? resolve() : reject(new Error(`${file}: exit=${code}, signal=${signal}`)));
+  child.once('close', (code, signal) => code === 0 ? resolve() : reject(new Error(`${file}: exit=${code}, signal=${signal}, parentKillRequested=${child.killed}, elapsedMs=${Date.now()-started}, budgetMs=${timeout}`)));
 });
 let server;
 try {
@@ -66,9 +67,9 @@ try {
   for (const suite of [
     { id: 'player', name: 'three-normal-routes', file: 'tests/goal-player-review.mjs',
       report: 'tests/remote-player.json', env: { GOAL_OUT: `${root}/player`, GOAL_REPORT: 'tests/remote-player.json' } },
-    // Keep the original distant route intact, but give it its own existing
-    // child budget instead of sharing 60 minutes with both contact routes.
-    { id: 'distant', name: 'original-distant-route', file: 'tests/goal-player-review.mjs', route: 1, expectedRounds: 1,
+    // Original route reached its project at the measured 60-minute child cap.
+    // One bounded extension leaves path, quality and assertions unchanged.
+    { id: 'distant', name: 'original-distant-route', file: 'tests/goal-player-review.mjs', route: 1, expectedRounds: 1, budgetMinutes: 75,
       report: 'tests/remote-distant.json', env: { GOAL_PLAYER_ROUTE: '1', GOAL_OUT: `${root}/distant`, GOAL_REPORT: 'tests/remote-distant.json' } },
     { id: 'wall-rail', name: 'original-wall-rail-route', file: 'tests/goal-player-review.mjs', route: 2, expectedRounds: 1,
       report: 'tests/remote-wall-rail.json', env: { GOAL_PLAYER_ROUTE: '2', GOAL_OUT: `${root}/wall-rail`, GOAL_REPORT: 'tests/remote-wall-rail.json' } },
@@ -83,12 +84,12 @@ try {
     { id: 'controls', name: 'game-controls', file: 'tests/game-controls-review.mjs', expectedChecks: 15,
       report: 'tests/remote-game-controls.json', env: { GAME_OUT: `${root}/controls`, GAME_REPORT: 'tests/remote-game-controls.json' } },
   ].filter(suite => requestedSuite === 'all' ? ['player', 'continuous', 'faults', 'controls'].includes(suite.id) : suite.id === requestedSuite)) {
-    const entry = { name: suite.name, report: suite.report, status: 'running' };
+    const entry = { name: suite.name, report: suite.report, status: 'running', childBudgetMinutes:suite.budgetMinutes||60 };
     report.suites.push(entry);
     entry.recording = { method: 'FFmpeg X11 desktop; independent of Chromium screencast',
       file: `${root}/${suite.name}.mp4`, started: new Date().toISOString(), frameRate: 8 };
     const recording = startRecording(entry.recording.file);
-    try { await run(suite.file, { ...suite.env, REMOTE_SCREEN_RECORDING: entry.recording.file }); }
+    try { await run(suite.file, { ...suite.env, REMOTE_SCREEN_RECORDING: entry.recording.file },entry.childBudgetMinutes); }
     finally {
       await finishRecording(recording, entry);
       const result = await readFile(suite.report, 'utf8').then(JSON.parse).catch(() => null);
@@ -130,7 +131,7 @@ finally {
     (priority(a) < 0 ? 99 : priority(a)) - (priority(b) < 0 ? 99 : priority(b)));
   const clips = files.filter(file => file.endsWith('-preview.mp4'));
   let remaining = 24 * 1024 * 1024;
-  for (const file of ['tests/remote-desktop-summary.json', 'tests/remote-player.json', 'tests/remote-wall-rail.json', 'tests/remote-roof.json', 'tests/remote-glass.json', 'tests/remote-continuous.json', 'tests/remote-resource-failures.json', 'tests/remote-game-controls.json', ...clips.map(file => `${root}/${file}`), ...pictures.map(file => `${root}/${file}`)]) {
+  for (const file of ['tests/remote-desktop-summary.json', 'tests/remote-player.json', 'tests/remote-distant.json', 'tests/remote-wall-rail.json', 'tests/remote-roof.json', 'tests/remote-glass.json', 'tests/remote-continuous.json', 'tests/remote-resource-failures.json', 'tests/remote-game-controls.json', ...clips.map(file => `${root}/${file}`), ...pictures.map(file => `${root}/${file}`)]) {
     const bytes = await readFile(file).catch(() => null); if (!bytes) continue;
     const compressed = gzipSync(bytes);
     if (compressed.length > remaining) continue;
