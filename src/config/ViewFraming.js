@@ -8,7 +8,7 @@ export const ViewFraming = {
   orbitLimits: { yaw: [-Math.PI, Math.PI], pitch: [-1.38, 1.38], continuousYaw: true },
   desktopSpace: { left: 0.30, right: 0.97, top: 0.18, bottom: 0.82 },
   desktopFlight: { left: 0.12, right: 0.92, top: 0.16, bottom: 0.82 },
-  flight: { distance: 8.5, focusHeight: 1.02 },
+  flight: { distance: 8.5, focusHeight: 1.02, studioDistance: 15, studioRange: [3,12] },
   // Authored satellite directions stay outside the studio shell. The final
   // view is fitted against the actual project panel rectangle.
   satelliteProjectOffsets: { threadcove: [-9.2, 3.4, 5.2], clawtide: [3.1, 1.8, 6.4] },

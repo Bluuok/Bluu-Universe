@@ -7,7 +7,7 @@ on:
         description: Bounded diagnostic, not full route acceptance
         type: choice
         default: ui-surface
-        options: [ui-surface, arrival, paint-surface, paint-components, opengl]
+        options: [ui-surface, arrival, paint-surface, paint-components, studio-framing, opengl]
 
 permissions:
   contents: read
@@ -36,6 +36,7 @@ jobs:
           ARRIVAL_CPU_FRAME_MS=5000 node tests/room-flight-arrival-cpu.mjs
           ARRIVAL_CPU_SCENARIO=roof ARRIVAL_CPU_FRAME_MS=5000 ARRIVAL_CPU_IO_MS=1000 ARRIVAL_CPU_TIMEOUT_MS=600000 node tests/room-flight-arrival-cpu.mjs
           ARRIVAL_CPU_SCENARIO=doorway ARRIVAL_CPU_FRAME_MS=5000 ARRIVAL_CPU_IO_MS=1000 ARRIVAL_CPU_TIMEOUT_MS=600000 node tests/room-flight-arrival-cpu.mjs
+          node tests/studio-framing-cpu.mjs
       - name: Current flow shader component tokens (no browser launch)
         if: inputs.check == 'paint-components'
         run: node tests/paint-components-cpu.mjs
@@ -43,7 +44,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg libgl1-mesa-dri
       - name: Bounded full-quality environment check
-        timeout-minutes: ${{ (inputs.check == 'paint-surface' || inputs.check == 'paint-components') && 12 || 5 }}
+        timeout-minutes: ${{ (inputs.check == 'paint-surface' || inputs.check == 'paint-components' || inputs.check == 'studio-framing') && 12 || 5 }}
         run: xvfb-run -a -s "-screen 0 1600x1100x24" node tests/remote-render-probe.mjs
       - uses: actions/upload-artifact@v4
         if: always()

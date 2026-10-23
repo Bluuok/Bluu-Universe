@@ -6,7 +6,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import assert from 'node:assert/strict';
-import { flyTo } from './room-flight-route.mjs';
+import { flyTo, lookBy } from './room-flight-route.mjs';
 import { execFileSync } from 'node:child_process';
 import { paintComponents, componentFieldSource } from './paint-component-variants.mjs';
 
@@ -14,14 +14,15 @@ assert.equal(process.platform, 'linux');
 assert.equal(process.env.GITHUB_ACTIONS, 'true');
 assert.equal(process.env.LIBGL_ALWAYS_SOFTWARE, 'true');
 const check = process.env.REMOTE_RENDER_CHECK || 'opengl';
-assert(['opengl', 'ui-surface', 'arrival', 'paint-surface', 'paint-components'].includes(check));
+assert(['opengl', 'ui-surface', 'arrival', 'paint-surface', 'paint-components', 'studio-framing'].includes(check));
 const paintCheck=['paint-surface','paint-components'].includes(check),components=check==='paint-components';
+const studioCheck=check==='studio-framing',studioSourceFile='src/config/ViewFraming.js';
 const paintBaselineRef='e326bc410bb369380a3717530819747f6ee93cda';
 const paintSourceFile='src/scenes/sky/VortexPaintMaterial.js';
 const root = `screenshots/remote-desktop/render-probe/${check}`;
 await mkdir(root, { recursive: true });
 const report = { started: new Date().toISOString(), commit: process.env.GITHUB_SHA,
-  check, scope: paintCheck
+  check, scope: studioCheck?'Camera framing diagnostic: explicit body pose fixtures and actual follow/avoidance; not gameplay or contact acceptance':paintCheck
     ? 'Material A/B diagnostic: explicit inspection camera, normal reload, temporary CI source patch; zero gameplay acceptance'
     : 'Bounded renderer/UI diagnostic; no quality or product-state writes; not three-round acceptance',
   windowsBrowserStarted: false, completedRounds: 0, errors: [], requestFailures: [], captures: [] };
@@ -36,6 +37,11 @@ try {
     assert.notEqual(text.replace(/\r\n/g,'\n'),baseline.replace(/\r\n/g,'\n'),'Expected a distinct material candidate');
     restoreSource={file:paintSourceFile,text};
     await writeFile(paintSourceFile,baseline);await build();
+  } else if(studioCheck){
+    const text=await readFile(studioSourceFile,'utf8'),anchor='studioDistance: 15';
+    assert.equal(text.split(anchor).length,2,'Studio framing comparison anchor changed');
+    restoreSource={file:studioSourceFile,text};
+    await writeFile(studioSourceFile,text.replace(anchor,'studioDistance: 8.5'));await build();
   }
   server = await preview({ preview: { host: '127.0.0.1', port: 4259, strictPort: true } });
   // Documented ANGLE backend selection; do not disable the watchdog or sandbox.
@@ -67,8 +73,46 @@ try {
   report.before = await observe();
   const frame = async (name, options) => { const file = `${root}/${name}.png`, before = await observe();
     report.captures.push({ file, before, capture: await saveDesktopFrame(page, file,
-      { ...(paintCheck ? { completionTimeout: 120000 } : {}), ...options }), after: await observe() }); };
-  if (paintCheck) {
+      { ...((paintCheck||studioCheck) ? { completionTimeout: 120000 } : {}), ...options }), after: await observe() }); };
+  if(studioCheck){
+    report.debugPoseUsed=true;report.gameplayAttempted=false;report.cameraOverrideUsed=false;
+    report.viewSource='Measured wall contact positions plus a front glazing pose; actual CameraDirector follow and full scene avoidance, no framePosition override';
+    report.variants=[];
+    // Clockwise outside-camera sequence: a fixture jump must not ask the eye
+    // sweep to cut straight through the house from its back to its front.
+    const views=[{name:'front-glazing',position:[-2,3.5,5.6979],yaw:0},
+      {name:'left-wall',position:[-6.356590200653077,3.0678836875190685,.10783948811625912],yaw:-Math.PI/2},
+      {name:'back-wall',position:[-.21200160485509614,1.9175564036342758,-5.946390081634522],yaw:Math.PI}];
+    for(const variant of ['baseline','candidate']){
+      if(variant==='candidate'){
+        await writeFile(studioSourceFile,restoreSource.text);await build();
+        await page.reload({waitUntil:'domcontentloaded',timeout:45000});
+        await page.waitForFunction(()=>window.starhaven?.ready,null,{timeout:120000});
+      }
+      const entry={variant,build:await runtimeBuildIdentity(page),views:[]};report.variants.push(entry);
+      for(const view of views){
+        assert(await page.evaluate(v=>starhaven.inspect.placeFlightFixture({position:v.position,yaw:v.yaw}),view));
+        // Activate real heading follow; pose placement alone does not activate
+        // the pilot. Opposite RMB deltas restore the requested heading.
+        await lookBy(page,1,0);await lookBy(page,-1,0);
+        await page.waitForFunction(({p,d})=>{
+          const a=starhaven,f=a.framing;
+          return a.state==='SPACE'&&!a.cameraProgress.transition&&f.navigationMode==='CHARACTER_FOLLOW'&&
+            Math.hypot(...a.player.map((v,i)=>v-p[i]))<.001&&
+            Math.abs(f.flightFollow.distance-d)<.03&&Math.abs(f.flightFollow.requested-d)<.03&&
+            Math.abs(Math.hypot(...a.camera.map((v,i)=>v-a.cameraProgress.target[i]))-d)<.06;
+        },{p:view.position,d:variant==='baseline'?8.5:15},{timeout:120000,polling:100});
+        await frame(`${variant}-${view.name}`,{settle:true,finishGPU:true});
+        const observation=await page.evaluate(()=>({player:starhaven.player,camera:starhaven.camera,target:starhaven.cameraProgress.target,framing:starhaven.framing,state:starhaven.state,flight:starhaven.flight}));
+        assert.equal(observation.state,'SPACE');assert.equal(observation.framing.avoidance.lineOfSightClear,true);
+        assert(Math.hypot(...observation.player.map((v,i)=>v-view.position[i]))<.001,'Diagnostic fixture moved');
+        entry.views.push({name:view.name,requested:view,observation});
+      }
+    }
+    assert.notEqual(report.variants[0].build.sha256,report.variants[1].build.sha256);
+    assert.equal(report.variants[0].build.cssSHA256,report.variants[1].build.cssSHA256);
+    assert.deepEqual(report.errors,[]);
+  } else if (paintCheck) {
     report.debugCameraUsed = true; report.gameplayAttempted = false; report.normalReloadUsed = true;
     report.viewSource = 'Explicit material closeups centred at authored broad-s-current curve t=.22; not player views or a replay';
     const { CatmullRomCurve3, Vector3 } = await import('three');

@@ -47,6 +47,7 @@ jobs:
           node tests/room-entry-arrival-cpu.mjs
           node tests/static-contact-attribution-cpu.mjs
           node tests/glass-contact-route-cpu.mjs
+          node tests/studio-framing-cpu.mjs
       - run: npm run build
       - name: Install matched Linux Chromium
         run: npx playwright install --with-deps chromium
