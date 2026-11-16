@@ -15,7 +15,13 @@ nav{gap:12px;padding:7px 10px 7px 15px;background:rgba(7,25,43,.82);border:1px s
 /* Responsive framing review: text occupies a real safety area beside/above the scene. */
 #space-copy{transition:opacity .65s,transform .65s}
 .exploring #space-copy{opacity:0;transform:translateY(-12px);pointer-events:none}
-#controls #look-mode{margin-left:auto;margin-right:10px}
+#controls #pause-flight{margin-left:auto}
+#controls #look-mode,#controls #reset-view{margin:0}
+#controls button{flex-shrink:0;min-height:34px;padding:8px 12px;border:1px solid var(--line);border-radius:9px;background:#122d40;color:#dce8ec;font-size:11px;line-height:1.4;white-space:nowrap;transition:background 160ms ease,border-color 160ms ease,transform 160ms ease}
+#controls button:hover:not(:disabled){background:#244254;border-color:#e6bc7570}
+#controls button:active:not(:disabled){transform:translateY(1px)}
+#controls button[aria-pressed="true"]{background:#3e3b30;border-color:#e6bc7599;color:#f5d9a9}
+@media(prefers-reduced-motion:reduce){#controls button{transition:none}#controls button:active:not(:disabled){transform:none}}
 #controls{padding:12px 14px;border:1px solid var(--line);border-radius:6px;background:rgba(7,25,43,.72);backdrop-filter:blur(10px);color:#d4e1e9}
 #location{padding:6px 9px;border-radius:4px;background:rgba(7,25,43,.76);backdrop-filter:blur(8px);color:#d4e1e9}
 #state-indicator{color:#becdd7}
