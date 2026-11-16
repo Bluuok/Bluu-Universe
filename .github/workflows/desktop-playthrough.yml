@@ -7,7 +7,7 @@ on:
         description: Existing route suite to run
         type: choice
         default: all
-        options: [all, final, continuous, player, distant, faults, controls, contacts, glass]
+        options: [all, final, continuous, player, distant, faults, controls, contacts, glass, props]
 
 permissions:
   contents: read
@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: ${{ fromJSON(inputs.suite == 'final' && '["continuous","distant","wall-rail","roof","glass","faults","controls"]' || inputs.suite == 'continuous' && '["continuous"]' || inputs.suite == 'player' && '["player"]' || inputs.suite == 'distant' && '["distant"]' || inputs.suite == 'faults' && '["faults"]' || inputs.suite == 'controls' && '["controls"]' || inputs.suite == 'contacts' && '["wall-rail","roof"]' || inputs.suite == 'glass' && '["glass"]' || '["continuous","player","faults","controls"]') }}
+        suite: ${{ fromJSON(inputs.suite == 'final' && '["continuous","distant","wall-rail","roof","glass","faults","controls"]' || inputs.suite == 'continuous' && '["continuous"]' || inputs.suite == 'player' && '["player"]' || inputs.suite == 'distant' && '["distant"]' || inputs.suite == 'faults' && '["faults"]' || inputs.suite == 'controls' && '["controls"]' || inputs.suite == 'contacts' && '["wall-rail","roof"]' || inputs.suite == 'glass' && '["glass"]' || inputs.suite == 'props' && '["props"]' || '["continuous","player","faults","controls"]') }}
     env:
       REMOTE_QA_SUITE: ${{ matrix.suite }}
       GOAL_FLIGHT_TIMEOUT_MS: '600000'
@@ -48,6 +48,7 @@ jobs:
           node tests/static-contact-attribution-cpu.mjs
           node tests/glass-contact-route-cpu.mjs
           node tests/studio-framing-cpu.mjs
+          node tests/prop-diagonal-route-cpu.mjs
       - run: npm run build
       - name: Install matched Linux Chromium
         run: npx playwright install --with-deps chromium

@@ -12,7 +12,7 @@ const url=process.env.GOAL_URL||'http://127.0.0.1:4259/',out=process.env.GOAL_OU
 const file=process.env.GOAL_REPORT||'tests/v13-player-review.json';
 const flightTimeout=Number(process.env.GOAL_FLIGHT_TIMEOUT_MS||60000),contactTimeout=Number(process.env.GOAL_CONTACT_TIMEOUT_MS||7000);
 const selectedRoute=process.env.GOAL_PLAYER_ROUTE;
-assert(!selectedRoute||['1','2','3','4'].includes(selectedRoute),'Unknown player route');
+assert(!selectedRoute||['1','2','3','4','5'].includes(selectedRoute),'Unknown player route');
 const routeIds=selectedRoute?[Number(selectedRoute)]:[1,2,3];
 await mkdir(out,{recursive:true});
 const browser=await chromium.launch(desktopLaunchOptions);
@@ -23,7 +23,7 @@ await context.addInitScript(()=>{window.__goalInputs=[];window.__goalSamples=[];
 });
 const report={startedAt:new Date().toISOString(),method:'Three normal-reload routes, trusted keyboard/mouse and visible controls. Existing room-flight-route helpers are used directly. Evaluation only reads telemetry or passive event logs; no product pose/state/camera fixtures.',environment:{platform:process.platform,executable:chromium.executablePath(),launchOptions:desktopLaunchOptions},url,routes:[],runtimeErrors:[],requestFailures:[]};
 report.requestedRoutes=routeIds;
-if(selectedRoute)report.method=`${selectedRoute==='4'?'Additional glass route':'Original route '+selectedRoute} in isolation; trusted keyboard/mouse, no product pose/state/camera writes. Not three-route acceptance.`;
+if(selectedRoute)report.method=`${selectedRoute==='4'?'Additional glass route':selectedRoute==='5'?'Additional near-prop and diagonal route':'Original route '+selectedRoute} in isolation; trusted keyboard/mouse, no product pose/state/camera writes. Not three-route acceptance.`;
 let page,current;
 const observe=()=>page.evaluate(()=>({state:starhaven.state,player:starhaven.player,velocity:starhaven.velocity,flight:starhaven.flight,camera:starhaven.camera,framing:starhaven.framing,room:starhaven.inspect.roomEntities(),collision:starhaven.inspect.collision(),rendering:starhaven.rendering,project:starhaven.currentProject}));
 async function save(){
@@ -46,29 +46,34 @@ async function face(yaw,pitch=0){
     await page.mouse.move(720+offset(-wrap(yaw-f.aimBaseYaw),f.aimYawRange)*f.pointerRangePx,480+offset(-(pitch-f.aimBasePitch),f.aimPitchRange)*f.pointerRangePx);await page.waitForTimeout(100);
   }throw Error('Actual pointer turn failed to converge');
 }
-async function contact(key,normal,name,ids=[]){
-  const rail=name==='rail-body-contact',started=Date.now();let after=0,body;
+async function contact(key,normal,name,ids=[],group='studio-static'){
+  const rail=name==='rail-body-contact',started=Date.now();let after=(await observe()).collision.solveCount,body;
+  const held=Array.isArray(key)?key:[key];
   if(rail)ids=CollisionManifest.static.filter(p=>p.id.startsWith('terrace-rail-front-left-')).map(p=>p.id);
-  await page.keyboard.down(key);
   try{
+    for(const k of held)await page.keyboard.down(k);
     while(!body){
       const remaining=contactTimeout-(Date.now()-started);assert(remaining>0,'Named body contact timed out');
-      const handle=await page.waitForFunction(({expected,rail,after})=>{const a=starhaven,t=a.inspect.collision(),c=t.lastSolve;
-        return t.solveCount>after&&c?.contacts.some(h=>h.collider==='studio-static'&&(rail?a.player[2]>6.7:h.normal.reduce((s,v,i)=>s+v*expected[i],0)>.7))?
-          {player:a.player,velocity:a.velocity,solve:c,count:t.solveCount,avoidance:a.framing?.avoidance}:false;
-      },{expected:normal,rail,after},{timeout:remaining});
+      const handle=await page.waitForFunction(({expected,rail,after,group})=>{const a=starhaven,t=a.inspect.collision(),c=t.lastSolve;
+        return t.solveCount>after&&c?.contacts.some(h=>h.collider===group&&(rail?a.player[2]>6.7:h.normal.reduce((s,v,i)=>s+v*expected[i],0)>.7))?
+          {player:a.player,velocity:a.velocity,keys:a.keys,solve:c,count:t.solveCount,avoidance:a.framing?.avoidance}:false;
+      },{expected:normal,rail,after,group},{timeout:remaining});
       const candidate=await handle.jsonValue();await handle.dispose();after=candidate.count;
       if(ids.length){
         candidate.attribution=attributeStaticContact(candidate.solve,ids);
         if(!candidate.attribution.matched)continue;
         assert(candidate.solve.contacts.every(c=>c.normal.reduce((sum,v,i)=>sum+v*candidate.velocity[i],0)>-1e-6),'Velocity still enters the actual contacted surface');
       }
+      if(group!=='studio-static'){
+        assert(candidate.solve.contacts.every(c=>c.collider===group),'A different body must not count as the named prop');
+        assert(candidate.solve.contacts.every(c=>c.normal.reduce((sum,v,i)=>sum+v*candidate.velocity[i],0)>-1e-6),'Velocity still enters the prop');
+      }
       body=candidate;
     }
-    current.contacts.push({name,expectedNormal:normal,normalCheck:rail?'Actual attributed rail surface; not a flat-wall normal':'Outward normal dot > .7',body});
+    current.contacts.push({name,expectedGroup:group,expectedNormal:normal,normalCheck:rail?'Actual attributed rail surface; not a flat-wall normal':'Outward normal dot > .7',body});
     if(name==='left-wall-body-contact')assert.ok(body.player[0]<-5.8);if(name==='back-wall-body-contact')assert.ok(body.player[2]<-5.4);if(rail)assert.ok(body.player[2]>6.7);if(name==='roof-body-contact')assert.ok(body.player[1]>6.2);
   }
-  finally{await page.keyboard.up(key);}
+  finally{for(const k of held)await page.keyboard.up(k);}
   await page.mouse.move(720,480);await page.waitForTimeout(500);await shot(name);
   return body;
 }
@@ -138,13 +143,25 @@ try{
       await page.mouse.move(720,480);await contact('Shift',[0,1,0],'roof-body-contact');await page.keyboard.down('Space');await page.waitForTimeout(500);await page.keyboard.up('Space');
       for(const [p,n] of [[[-12,12,10],'leave-roof'],[[-27,30,12],'upper-cloud'],[[-22,20,-25],'rear-upper-clear'],[[20,-20,-19],'lower-cloud'],[[12,9,-12],'return-east-high'],[[12,9,12],'return-front-high']])await go(p,n);
       await room(['contributions','contact']);
-    }else{
+    }else if(id===4){
       await go([-10,8,10],'glass-front-clear');await go([-2,3.5,9],'front-glass-approach',.25);await face(0);
       paneInterior(await contact('w',[0,0,1],'front-glass-body-contact',['studio-wall-front-left']),'front');
       await go([-2,4,10],'leave-front-glass');await go([10,8,10],'glass-east-clear');await go([9,3,-.74205],'right-glass-approach',.3);await face(Math.PI/2);
       paneInterior(await contact('w',[1,0,0],'right-glass-body-contact',['studio-wall-right']),'right');
       await go([10,4,-.74205],'leave-right-glass');await go([10,4,10],'door-side-clear');await go([-1,3,10],'door-front-clear');await go([-1,1.8,7.8],'door-side-approach',.25);await passDoorSideways();
       assert.equal((await observe()).state,'SPACE');
+    }else{
+      await go([-10,8,10],'prop-front-clear');await go([-2.8,1.65,10],'guide-approach',.25);await face(0);
+      await contact('w',[0,0,1],'guide-robot-body-contact',[],'robot');
+      await go([-2.8,4.5,10],'leave-guide');await go([-10,8,10],'prop-west-clear');await go([-9,3,2],'diagonal-approach',.25);await face(0);
+      const diagonal=await contact(['w','d'],[-1,0,0],'diagonal-left-wall-body-contact',['studio-wall-left']);
+      assert(diagonal.keys.includes('KeyW')&&diagonal.keys.includes('KeyD'),'Both diagonal keys must actually be held');
+      assert(diagonal.solve.requested[0]>0&&diagonal.solve.requested[2]<0&&diagonal.solve.resolved[2]<0,'Observe diagonal wall contact and tangential slide');
+      await go([-10,7,10],'leave-diagonal-wall');await go([7,5,10],'planter-front-clear');await go([3.1,3,6.15],'planter-above',.25);await face(0);
+      await contact('Shift',[0,1,0],'right-planter-body-contact',['terrace-planter-right-pot','terrace-planter-right-leaves']);
+      await go([7,4,10],'leave-planter');
+      const final=await page.evaluate(()=>({state:starhaven.state,passage:starhaven.passage}));
+      assert.equal(final.state,'SPACE');assert.equal(final.passage.entries,0);assert.equal(final.passage.exits,0);
     }
     current.inputs=await page.evaluate(()=>window.__goalInputs);current.samples=await page.evaluate(()=>window.__goalSamples);assert.ok(current.inputs.every(e=>e.trusted));current.trustedInputs=current.inputs.length;current.status='passed';current.finishedAt=new Date().toISOString();current.video=process.env.REMOTE_SCREEN_RECORDING||null;await page.close();await save();
   }

@@ -11,7 +11,7 @@ import { preview } from 'vite';
 assert.equal(process.platform, 'linux', 'Remote desktop QA requires Linux');
 assert.equal(process.env.GITHUB_ACTIONS, 'true', 'Run through the explicit GitHub workflow');
 const requestedSuite = process.env.REMOTE_QA_SUITE || 'all';
-assert(['all', 'player', 'distant', 'continuous', 'faults', 'controls', 'wall-rail', 'roof', 'glass'].includes(requestedSuite));
+assert(['all', 'player', 'distant', 'continuous', 'faults', 'controls', 'wall-rail', 'roof', 'glass', 'props'].includes(requestedSuite));
 const root = 'screenshots/remote-desktop';
 await mkdir(root, { recursive: true });
 const execute = promisify(execFile);
@@ -77,6 +77,8 @@ try {
       report: 'tests/remote-roof.json', env: { GOAL_PLAYER_ROUTE: '3', GOAL_OUT: `${root}/roof`, GOAL_REPORT: 'tests/remote-roof.json' } },
     { id: 'glass', name: 'glass-body-route', file: 'tests/goal-player-review.mjs', route: 4, expectedRounds: 1,
       report: 'tests/remote-glass.json', env: { GOAL_PLAYER_ROUTE: '4', GOAL_OUT: `${root}/glass`, GOAL_REPORT: 'tests/remote-glass.json' } },
+    { id: 'props', name: 'near-prop-and-diagonal-route', file: 'tests/goal-player-review.mjs', route: 5, expectedRounds: 1,
+      report: 'tests/remote-props.json', env: { GOAL_PLAYER_ROUTE: '5', GOAL_OUT: `${root}/props`, GOAL_REPORT: 'tests/remote-props.json' } },
     { id: 'continuous', name: 'three-continuous-visits', file: 'tests/goal-continuous-visit-review.mjs',
       report: 'tests/remote-continuous.json', env: { CONTINUOUS_OUT: `${root}/continuous`, CONTINUOUS_REPORT: 'tests/remote-continuous.json' } },
     { id: 'faults', name: 'resource-failures', file: 'tests/goal-resource-failure-review.mjs', expectedCases: 8,
@@ -131,7 +133,7 @@ finally {
     (priority(a) < 0 ? 99 : priority(a)) - (priority(b) < 0 ? 99 : priority(b)));
   const clips = files.filter(file => file.endsWith('-preview.mp4'));
   let remaining = 24 * 1024 * 1024;
-  for (const file of ['tests/remote-desktop-summary.json', 'tests/remote-player.json', 'tests/remote-distant.json', 'tests/remote-wall-rail.json', 'tests/remote-roof.json', 'tests/remote-glass.json', 'tests/remote-continuous.json', 'tests/remote-resource-failures.json', 'tests/remote-game-controls.json', ...clips.map(file => `${root}/${file}`), ...pictures.map(file => `${root}/${file}`)]) {
+  for (const file of ['tests/remote-desktop-summary.json', 'tests/remote-player.json', 'tests/remote-distant.json', 'tests/remote-props.json', 'tests/remote-wall-rail.json', 'tests/remote-roof.json', 'tests/remote-glass.json', 'tests/remote-continuous.json', 'tests/remote-resource-failures.json', 'tests/remote-game-controls.json', ...clips.map(file => `${root}/${file}`), ...pictures.map(file => `${root}/${file}`)]) {
     const bytes = await readFile(file).catch(() => null); if (!bytes) continue;
     const compressed = gzipSync(bytes);
     if (compressed.length > remaining) continue;
