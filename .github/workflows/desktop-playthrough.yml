@@ -49,6 +49,8 @@ jobs:
           node tests/glass-contact-route-cpu.mjs
           node tests/studio-framing-cpu.mjs
           node tests/prop-diagonal-route-cpu.mjs
+          node tests/flight-wake-check.mjs
+          node tests/flight-effects-lifecycle-check.mjs
       - run: npm run build
       - name: Install matched Linux Chromium
         run: npx playwright install --with-deps chromium
