@@ -11,7 +11,8 @@ import { preview } from 'vite';
 assert.equal(process.platform, 'linux', 'Remote desktop QA requires Linux');
 assert.equal(process.env.GITHUB_ACTIONS, 'true', 'Run through the explicit GitHub workflow');
 const requestedSuite = process.env.REMOTE_QA_SUITE || 'all';
-assert(['all', 'player', 'distant', 'continuous', 'faults', 'controls', 'wall-rail', 'roof', 'glass', 'props', 'words', 'effects'].includes(requestedSuite));
+const wordViews=['front','right','back','left','upper','lower'];
+assert(['all', 'player', 'distant', 'continuous', 'faults', 'controls', 'wall-rail', 'roof', 'glass', 'props', 'words', 'effects', ...wordViews.map(view=>'words-'+view)].includes(requestedSuite));
 const root = 'screenshots/remote-desktop';
 await mkdir(root, { recursive: true });
 const execute = promisify(execFile);
@@ -81,6 +82,8 @@ try {
       report: 'tests/remote-props.json', env: { GOAL_PLAYER_ROUTE: '5', GOAL_OUT: `${root}/props`, GOAL_REPORT: 'tests/remote-props.json' } },
     { id: 'words', name: 'six-view-word-orbit', file: 'tests/word-orbit-player-review.mjs', expectedViews: 6,
       report: 'tests/remote-words.json', env: { WORD_ORBIT_OUT: `${root}/words`, WORD_ORBIT_REPORT: 'tests/remote-words.json', WORD_CYCLE_TIMEOUT_MS: '300000' } },
+    ...wordViews.map(view=>({id:`words-${view}`,name:`word-orbit-${view}`,file:'tests/word-orbit-player-review.mjs',expectedViews:1,view,
+      report:`tests/remote-words-${view}.json`,env:{WORD_ORBIT_VIEW:view,WORD_ORBIT_OUT:`${root}/words-${view}`,WORD_ORBIT_REPORT:`tests/remote-words-${view}.json`,WORD_CYCLE_TIMEOUT_MS:'1800000'}})),
     { id: 'effects', name: 'flight-effects-phases', file: 'tests/flight-effects-player-review.mjs', expectedSteps: 9,
       report: 'tests/remote-effects.json', env: { WAKE_OUT: `${root}/effects`, WAKE_REPORT: 'tests/remote-effects.json' } },
     { id: 'continuous', name: 'three-continuous-visits', file: 'tests/goal-continuous-visit-review.mjs',
@@ -106,6 +109,7 @@ try {
         if (suite.expectedCases) entry.completedCases = result.cases?.filter(item => item.status === 'passed').length;
         if (suite.expectedChecks) entry.completedChecks = result.checks?.filter(item => item.status === 'passed').length;
         if (suite.expectedViews) entry.completedViews = result.views?.filter(item => item.status === 'passed').length;
+        if (suite.view) {entry.selectedView=result.requestedView;assert.equal(result.requestedView,suite.view);if(result.status==='passed')assert.deepEqual(result.views.map(view=>view.id),[suite.view]);}
         if (suite.expectedSteps) entry.completedSteps = result.steps?.length;
         entry.trustedInputs = result.trustedInputs ?? result.inputs?.trusted ?? result.routes?.reduce((n, route) => n + (route.trustedInputs || 0), 0);
       } else entry.status = 'missing-report';
@@ -141,7 +145,7 @@ finally {
     (priority(a) < 0 ? 99 : priority(a)) - (priority(b) < 0 ? 99 : priority(b)));
   const clips = files.filter(file => file.endsWith('-preview.mp4'));
   let remaining = 24 * 1024 * 1024;
-  for (const file of ['tests/remote-desktop-summary.json', 'tests/remote-player.json', 'tests/remote-distant.json', 'tests/remote-props.json', 'tests/remote-words.json', 'tests/remote-effects.json', 'tests/remote-wall-rail.json', 'tests/remote-roof.json', 'tests/remote-glass.json', 'tests/remote-continuous.json', 'tests/remote-resource-failures.json', 'tests/remote-game-controls.json', ...clips.map(file => `${root}/${file}`), ...pictures.map(file => `${root}/${file}`)]) {
+  for (const file of ['tests/remote-desktop-summary.json', ...wordViews.map(view=>`tests/remote-words-${view}.json`), 'tests/remote-player.json', 'tests/remote-distant.json', 'tests/remote-props.json', 'tests/remote-words.json', 'tests/remote-effects.json', 'tests/remote-wall-rail.json', 'tests/remote-roof.json', 'tests/remote-glass.json', 'tests/remote-continuous.json', 'tests/remote-resource-failures.json', 'tests/remote-game-controls.json', ...clips.map(file => `${root}/${file}`), ...pictures.map(file => `${root}/${file}`)]) {
     const bytes = await readFile(file).catch(() => null); if (!bytes) continue;
     const compressed = gzipSync(bytes);
     if (compressed.length > remaining) continue;

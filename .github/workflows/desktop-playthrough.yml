@@ -23,8 +23,9 @@ jobs:
     timeout-minutes: ${{ matrix.suite == 'distant' && 90 || 70 }}
     strategy:
       fail-fast: false
+      max-parallel: ${{ inputs.suite == 'words' && 2 || 7 }}
       matrix:
-        suite: ${{ fromJSON(inputs.suite == 'final' && '["continuous","distant","wall-rail","roof","glass","faults","controls"]' || inputs.suite == 'continuous' && '["continuous"]' || inputs.suite == 'player' && '["player"]' || inputs.suite == 'distant' && '["distant"]' || inputs.suite == 'faults' && '["faults"]' || inputs.suite == 'controls' && '["controls"]' || inputs.suite == 'contacts' && '["wall-rail","roof"]' || inputs.suite == 'glass' && '["glass"]' || inputs.suite == 'props' && '["props"]' || inputs.suite == 'words' && '["words"]' || inputs.suite == 'effects' && '["effects"]' || '["continuous","player","faults","controls"]') }}
+        suite: ${{ fromJSON(inputs.suite == 'final' && '["continuous","distant","wall-rail","roof","glass","faults","controls"]' || inputs.suite == 'continuous' && '["continuous"]' || inputs.suite == 'player' && '["player"]' || inputs.suite == 'distant' && '["distant"]' || inputs.suite == 'faults' && '["faults"]' || inputs.suite == 'controls' && '["controls"]' || inputs.suite == 'contacts' && '["wall-rail","roof"]' || inputs.suite == 'glass' && '["glass"]' || inputs.suite == 'props' && '["props"]' || inputs.suite == 'words' && '["words-front","words-right","words-back","words-left","words-upper","words-lower"]' || inputs.suite == 'effects' && '["effects"]' || '["continuous","player","faults","controls"]') }}
     env:
       REMOTE_QA_SUITE: ${{ matrix.suite }}
       GOAL_FLIGHT_TIMEOUT_MS: '600000'
