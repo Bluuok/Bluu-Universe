@@ -185,8 +185,17 @@ camera.position.set(-1.1,3.3,1.1);
 camera.lookAt(new THREE.Vector3(...manifest.building.rightWindow.center));
 camera.updateMatrixWorld();
 extraCoverage.insideRightWindow = projectedTide();
+// Look from one point along cube faces, edges and corners. Counting each
+// batch separately catches bare poles even if the distant panorama is busy.
+const allDirections=[];
+for(const x of [-1,0,1]) for(const y of [-1,0,1]) for(const z of [-1,0,1]){
+  if(x===0 && y===0 && z===0) continue;
+  lookFrom(origin.toArray(),[x,y,z]);
+  const counts=visibleCentres().map(batch=>batch.filter(insideScreen).length);
+  allDirections.push({direction:[x,y,z],counts});
+}
 console.log(JSON.stringify({
-  viewport: [width,height], startView, meshes, turnSamples: times.length, extraCoverage, strafePixels, openingWidths,
+  viewport: [width,height], startView, meshes, turnSamples: times.length, extraCoverage, strafePixels, openingWidths, allDirections,
   prepareForCameraMs: percentiles(times), dirtyAttributeBytesPerTurn: percentiles(uploaded),
 }, null, 2));
 sky.dispose();

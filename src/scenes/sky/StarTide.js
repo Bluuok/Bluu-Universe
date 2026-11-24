@@ -65,6 +65,40 @@ export function createStarTide({far, radius, centre, seed, skyUniforms}) {
     stroke(t,1,2+(random()-.5)*9,(random()-.5)*9,.12+random()*.55,
       .035+random()*.075,.45,.7,i%9===0?.75:0,true);
   }
+  // Equal-area anchors avoid a crowded equator or a bare polar cap. Each
+  // anchor carries part of a curved current with open sky between currents.
+  const patches=56, goldenAngle=Math.PI*(3-Math.sqrt(5));
+  for (let i=0;i<patches;i++) {
+    const y=1-2*(i+.5)/patches, azimuth=i*goldenAngle;
+    const horizontal=Math.sqrt(1-y*y);
+    const normal=new THREE.Vector3(horizontal*Math.cos(azimuth),y,horizontal*Math.sin(azimuth));
+    const east=new THREE.Vector3(-Math.sin(azimuth),0,Math.cos(azimuth));
+    const north=new THREE.Vector3().crossVectors(east,normal);
+    const roll=.85*Math.sin(azimuth*2+y*3);
+    east.applyAxisAngle(normal,roll);
+    north.applyAxisAngle(normal,roll);
+    const span=.17+.09*random(), curl=(.08+.07*random())*(i%2?1:-1);
+    const depth=far?radius*.98:105+random()*185;
+    const count=far?12:32;
+    for(let j=0;j<count;j++) {
+      const u=2*(j+random())/count-1, pressure=1-.65*Math.abs(u);
+      const lane=j%4, spineMark=lane===0;
+      const r=depth*(far?1:1+.09*lane);
+      const lateral=curl*(1-u*u)+lane*.007+(.5-random())*(spineMark?.008:.035);
+      const direction=normal.clone().addScaledVector(east,u*span).addScaledVector(north,lateral).normalize();
+      const axis=east.clone().multiplyScalar(span).addScaledVector(north,-2*curl*u);
+      axis.addScaledVector(direction,-axis.dot(direction)).normalize();
+      const cross=new THREE.Vector3().crossVectors(axis,direction).normalize();
+      const tint=cobalt.clone().lerp(turquoise,.2+pressure*random()*.62);
+      if(i%7===2 && spineMark && Math.abs(u)<.4) tint.lerp(ochre,.65);
+      centres.push(...direction.multiplyScalar(r).toArray());
+      lengths.push(...axis.multiplyScalar(r*pressure*(spineMark?.052:.012+.018*random())).toArray());
+      widths.push(...cross.multiplyScalar(r*pressure*(spineMark?.0038:.0019)).toArray());
+      colours.push(...tint.toArray());
+      // Phase zero leaves the travelling highlight on the porch current.
+      styles.push(curl*13,spineMark?.28:.68,0,random());
+    }
+  }
   const base=new THREE.PlaneGeometry(2,2,8,2);
   const geometry=new THREE.InstancedBufferGeometry();
   geometry.setIndex(base.index.clone());

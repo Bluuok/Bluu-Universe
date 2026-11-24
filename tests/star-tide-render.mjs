@@ -96,6 +96,13 @@ try {
   }
   assert.equal(await capture('porch'), 'SPACE');
   report.desktop = await saveDesktopFrame(page, `${output}/porch-desktop.png`);
+  const porchFrame=report.frames[0];
+  for(const [name,direction] of Object.entries({
+    east:[1,0,0],west:[-1,0,0],north:[0,0,-1],south:[0,0,1],
+    zenith:[0,1,-.001],nadir:[0,-1,-.001],
+  })){
+    await capture(name,{camera:porchFrame.camera,target:add(porchFrame.camera,direction)});
+  }
   async function film(name, seconds, poseAt) {
     await mkdir(`${output}/${name}`, { recursive: true });
     for (let i = 0; i < seconds * fps; i++) {
