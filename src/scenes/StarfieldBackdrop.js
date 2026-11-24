@@ -99,12 +99,12 @@ export class StarfieldBackdrop {
     this.expandNow = 0; this.expandTarget = 0; // retained callable API, no old-card displacement
     this.random = randomGenerator(this.config.seed);
     this.makeEnvironment();
-    this.brushwork = createPaintedSkyStrokes(this.config.brushes, this.config.panorama);
+    this.brushwork = createPaintedSkyStrokes(this.config.brushes, this.config.panorama, this.config.center);
     this.brushwork.position.set(...this.config.center); this.group.add(this.brushwork);
     // Independent depth shells share the same panorama and world centre.
     // They are flyable; opaque scene geometry still occludes the strokes.
     this.parallax = this.config.parallax.enabled
-      ? createPainterlyParallax(this.config.parallax, this.config.panorama) : null;
+      ? createPainterlyParallax(this.config.parallax, this.config.panorama, this.config.center) : null;
     if (this.parallax) { this.parallax.position.set(...this.config.center); this.group.add(this.parallax); }
     const configuredDust = this.config.bands.reduce((sum, band) => sum + band.count, 0);
     for (const band of this.config.bands) this.makeDustVolume({ ...band,

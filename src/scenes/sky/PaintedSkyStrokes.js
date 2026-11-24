@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {environmentSampling} from './SkyShaders.js';
+import {createStarTide} from './StarTide.js';
 
 const vertexShader = /* glsl */`
 ${environmentSampling}
@@ -64,7 +65,7 @@ void main() {
 
 /** Distant, fixed-world surface detail, distinct from reachable scenery and
  * existing volumetric dust. One instanced draw; no camera or animation loop. */
-export function createPaintedSkyStrokes(config, panorama) {
+export function createPaintedSkyStrokes(config, panorama, centre) {
   const count = config.coarse + config.fine;
   const geometry = new THREE.InstancedBufferGeometry();
   geometry.setAttribute('position',new THREE.Float32BufferAttribute([-.5,-.5,0,.5,-.5,0,.5,.5,0,-.5,.5,0],3));
@@ -88,5 +89,6 @@ export function createPaintedSkyStrokes(config, panorama) {
     side:THREE.DoubleSide,transparent:true,depthWrite:false,depthTest:true,toneMapped:false,fog:false});
   const object=new THREE.Mesh(geometry,material);
   object.name='DistantNativeOilBrushwork';object.renderOrder=-39;object.frustumCulled=false;object.visible=false;
+  if (centre) object.add(createStarTide({far:true,radius:config.radius,centre,seed:config.seed,skyUniforms:material.uniforms}));
   return object;
 }

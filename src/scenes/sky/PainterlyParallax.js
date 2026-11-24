@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {environmentSampling} from './SkyShaders.js';
+import {createStarTide} from './StarTide.js';
 
 // Depth-aware, non-colliding paint between the 2D panorama and near 3D clouds.
 // The strokes are authored on nested world-fixed spherical shells; their
@@ -97,7 +98,7 @@ export const DEFAULT_PARALLAX = Object.freeze({
  * All directions and sizes are deterministic, so route screenshots are stable.
  * The caller exclusively owns the panorama texture and releases this geometry.
  */
-export function createPainterlyParallax(config = {}, panorama = {}) {
+export function createPainterlyParallax(config = {}, panorama = {}, centre) {
   const settings = {...DEFAULT_PARALLAX, ...config};
   const {radii, weights} = settings;
   if (!Number.isInteger(settings.count) || settings.count < 1 ||
@@ -194,5 +195,9 @@ export function createPainterlyParallax(config = {}, panorama = {}) {
     return true;
   };
   object.userData.sorting = 'camera-depth-per-stroke-centre';
+  if (centre) {
+    object.tide = createStarTide({far:false,centre,seed:settings.seed,skyUniforms:material.uniforms});
+    object.add(object.tide);
+  }
   return object;
 }

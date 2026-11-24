@@ -6,7 +6,7 @@ export function sweepPaintCurrent(recipe,{normal,palette,motion}){
   const spec=recipe.sweep,points=recipe.points.map(p=>new THREE.Vector3(...p));
   const length=new THREE.CatmullRomCurve3(points,false,'centripetal').getLength();
   const layout={curveSegments:Math.ceil(length/spec.segmentLength),crossSegments:spec.crossSegments};
-  const {geometry,curve}=sweptBody(points,{paintStroke:true,transportFrame:true,normal:normal.toArray(),...spec.profile},layout,{color:palette.blue[0],crest:palette.crest,shadow:palette.shadow});
+  const {geometry,curve}=sweptBody(points,{paintStroke:true,transportFrame:true,loadedBend:spec.loadedBend,normal:normal.toArray(),...spec.profile},layout,{color:palette.blue[0],crest:palette.crest,shadow:palette.shadow});
   const count=geometry.attributes.position.count,axis=new Float32Array(count*3),animation=new Float32Array(count*2),tangent=new THREE.Vector3(),colour=new THREE.Color(),gold=new THREE.Color(palette.gold);
   let goldVertices=0;
   for(let i=0;i<count;i++){

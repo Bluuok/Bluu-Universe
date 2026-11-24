@@ -59,6 +59,8 @@ export function sweptBody(points,profile,{curveSegments,crossSegments},palette) 
     const depthPressure=profile.paintStroke?.98+.025*Math.sin(t*Math.PI*2):.88+.15*Math.sin(t*13.2+.7);
     const depth=limit((THREE.MathUtils.lerp(profile.depth[0],profile.depth[1],envelope)*depthPressure+bulge('depth'))*roundedEnd);
     const ridgePhase=.5*Math.sin(t*Math.PI)+(profile.ridgeFlow?profile.ridgeFlow*Math.sin(t*9.7+Math.sin(t*3.1)):0);
+    const bend=profile.loadedBend;
+    const deposit=bend?Math.exp(-((t-bend.at)**2)/(2*bend.spread**2)):0;
     for(let j=0;j<=crossSegments;j++){
       const angle=j/crossSegments*Math.PI*2;
       // Broad lobes carry the silhouette; bristle-sized detail belongs in the
@@ -72,6 +74,8 @@ export function sweptBody(points,profile,{curveSegments,crossSegments},palette) 
       const cosine=Math.cos(angle),sine=Math.sin(angle),across=sectionPower===1?cosine:Math.sign(cosine)*Math.pow(Math.abs(cosine),sectionPower),height=sectionPower===1?sine:Math.sign(sine)*Math.pow(Math.abs(sine),sectionPower);
       // Radial ribs preserve angular order and valid fan caps on a blade.
       q.copy(p).addScaledVector(wide,across*width*irregular*(sectionPower===1?1:ridge)).addScaledVector(deep,height*depth*irregular*ridge);
+      // Load the outside shoulder of the S with a raised, narrowing blade.
+      if(deposit) q.addScaledVector(deep,deposit*Math.max(0,height)*Math.exp(-((across+.42)**2)/.14)*.72);
       positions.push(q.x,q.y,q.z);uvs.push(t*length,j/crossSegments);
       const highlight=.5+.5*Math.sin(angle+.65+Math.sin(t*8)*.35);
       color.copy(shadow).lerp(base,.65+highlight*.35).lerp(crest,highlight*.24);colors.push(color.r,color.g,color.b);

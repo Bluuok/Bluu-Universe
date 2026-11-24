@@ -1,0 +1,75 @@
+name: Star tide fixed-view comparison
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - 'tests/star-tide-render.mjs'
+      - '.github/workflows/star-tide-compare.yml'
+  workflow_dispatch:
+    inputs:
+      baseline:
+        description: Baseline commit SHA to compare with the selected ref
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: star-tide-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 52
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [baseline, candidate]
+    env:
+      LIBGL_ALWAYS_SOFTWARE: 'true'
+    steps:
+      - name: Check out the common capture harness
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: harness
+          sparse-checkout: tests/star-tide-render.mjs
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Check out the complete application revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.variant == 'baseline' && (github.event.pull_request.base.sha || inputs.baseline) || (github.event.pull_request.head.sha || github.sha) }}
+          path: app
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install pinned dependencies and check the browser entry
+        working-directory: app
+        run: |
+          cp ../harness/tests/star-tide-render.mjs tests/star-tide-render.mjs
+          npm ci
+          node tests/browser-safety-check.mjs
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y ffmpeg
+      - name: Render the four fixed-camera views
+        working-directory: app
+        timeout-minutes: 40
+        run: xvfb-run -a -s "-screen 0 1600x1100x24" node tests/star-tide-render.mjs
+      - name: Upload stills, motion and recorded camera poses
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: star-tide-${{ matrix.variant }}-${{ github.run_id }}
+          retention-days: 7
+          path: |
+            app/star-tide-evidence/*.png
+            app/star-tide-evidence/*.mp4
+            app/star-tide-evidence/*.json
+            app/star-tide-evidence/cross-and-look-back/058.png
