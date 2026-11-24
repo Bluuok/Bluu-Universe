@@ -31,6 +31,8 @@ export class CameraDirector {
     this.avoidance = null;
     this.exploring = false;
     this._exploreBlend = 0;
+    this._flightDistance = this.framing.flight.distance;
+    this._requestedFlightDistance = this._flightDistance;
     this._previousPlayer = null;
     this.camera.position.set(10, 7, 20);
     this.camera.up.copy(UP);
@@ -49,6 +51,8 @@ export class CameraDirector {
     if (mode !== this.mode) this.avoidance?.reset();
     if (mode === 'SPACE' && this.mode !== 'SPACE') {
       this.exploring=false;this._exploreBlend=0;this._previousPlayer=this._player?.clone()||null;
+      this._flightDistance=this.framing.flight.distance;
+      this._requestedFlightDistance=this._flightDistance;
       const direction = this.camera.position.clone().sub(this.target).normalize();
       this._viewYaw = Math.atan2(direction.x, direction.z) - 0.47;
       this._viewPitch = Math.asin(MathUtils.clamp(direction.y, -1, 1));
@@ -71,6 +75,8 @@ export class CameraDirector {
   snapToSpace(player) {
     this.avoidance?.reset();
     this.exploring = false;this._exploreBlend = 0;this._previousPlayer = vector(player);
+    this._flightDistance=this.framing.flight.distance;
+    this._requestedFlightDistance=this._flightDistance;
     this.mode = 'SPACE';
     this.transition = null;
     const limits = this.framing.orbitLimits;
@@ -136,6 +142,19 @@ export class CameraDirector {
   _playerBounds(player) {
     const position = vector(player), extents = this.framing.characterExtents;
     return new Box3(vector(extents.min).add(position), vector(extents.max).add(position));
+  }
+
+  _studioFlightDistance(player,direction) {
+    const flight=this.framing.flight,base=flight.distance;
+    if(!(flight.studioDistance>base))return base;
+    const studio=box(this.framing.spaceBounds),toward=studio.getCenter(new Vector3()).sub(player).normalize();
+    const near=1-MathUtils.smoothstep(studio.distanceToPoint(player),...(flight.studioRange||[3,12]));
+    const facing=MathUtils.smoothstep(-toward.dot(direction),.1,.7);
+    // Retain a readable avatar and the same heading; only make room behind
+    // the pilot when looking into the nearby studio. Narrow desktop windows
+    // need additional horizontal room, bounded to avoid excessive pullback.
+    const widthScale=MathUtils.clamp(1.5/this.camera.aspect,1,1.35);
+    return MathUtils.lerp(base,flight.studioDistance*widthScale,near*facing);
   }
 
   // Pure calculation: keep the anchor's viewing direction and fit the complete
@@ -217,6 +236,7 @@ export class CameraDirector {
       projectedBounds: bounds ? this._projectBounds(bounds) : null,
       playerBounds: kind === 'SPACE' && this._player ? this._projectBounds(this._playerBounds(this._player)) : null,
       avoidance: this.avoidance?.telemetry || null,
+      flightFollow:kind==='SPACE'?{distance:this._flightDistance,requested:this._requestedFlightDistance??this.framing.flight.distance}:null,
       lastFit: this._lastFit ? { kind: 'SPACE', distance: this._lastFit.distance,
         bounds: { min: this._lastFit.bounds.min.toArray(), max: this._lastFit.bounds.max.toArray() } } : null };
   }
@@ -252,6 +272,9 @@ export class CameraDirector {
       this._viewPitch = this._pilotSteering ? this.pitch : MathUtils.lerp(this._viewPitch, this.pitch, blend);
       const angle = 0.47 + this._viewYaw, pitch = this._viewPitch;
       const direction = new Vector3(Math.sin(angle) * Math.cos(pitch), Math.sin(pitch), Math.cos(angle) * Math.cos(pitch));
+      const requestedDistance=this._studioFlightDistance(this._player,direction);
+      this._requestedFlightDistance=requestedDistance;
+      this._flightDistance=MathUtils.lerp(this._flightDistance,requestedDistance,1-Math.exp(-3.2*dt));
       if(this._previousPlayer&&this._player.distanceToSquared(this._previousPlayer)>1e-7)this.exploring=true;
       this._previousPlayer=this._player.clone();
       this._exploreBlend=MathUtils.lerp(this._exploreBlend,this.exploring?1:0,1-Math.exp(-7*dt));
@@ -267,7 +290,7 @@ export class CameraDirector {
         const wide=this._fitView(bounds,safeDirection,'SPACE',this._followCenter,this._fitDistance);
         if(this._exploreBlend<.001)return wide;
         const focus=this._player.clone().add(new Vector3(0,this.framing.flight.focusHeight,0));
-        const follow=this._fitView(this._playerBounds(this._player),safeDirection,'SPACE',focus,this.framing.flight.distance);
+        const follow=this._fitView(this._playerBounds(this._player),safeDirection,'SPACE',focus,this._flightDistance);
         return {...follow,position:wide.position.clone().lerp(follow.position,this._exploreBlend),target:wide.target.clone().lerp(follow.target,this._exploreBlend)};
       };
       view = viewForDirection(direction);

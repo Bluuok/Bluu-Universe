@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071a33"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ctext y=%2227%22 font-size=%2230%22 fill=%22%23e6bc75%22%3E✳%3C/text%3E%3C/svg%3E"><title>Bluu Universe</title></head><body>
 <canvas id="world" aria-label="可互动的星海与工作室"></canvas>
-<div id="loading"><span class="orbit-loader"></span><p>正在点亮星港</p><small>星海、工作室与一些值得探索的作品</small></div>
+<div id="loading" role="status"><span class="orbit-loader" aria-hidden="true"></span><p>正在点亮星港</p><small>星海、工作室与一些值得探索的作品</small><button id="loading-retry" type="button" hidden>重新点亮星港</button></div>
 <header><a class="brand" href="#" aria-label="Bluu Universe 首页"><span class="brand-star">✳</span><span>Bluu Universe<small>BLUU UNIVERSE / PORTFOLIO</small></span></a><nav><button id="project-toggle" aria-controls="catalog" aria-expanded="false">作品目录 <span>↗</span></button><button id="sound" aria-pressed="false" title="主动开启轻交互音效">音效关闭</button></nav></header>
 <div id="space-copy"><p class="eyebrow"><i></i>一间漂浮在星海里的工作室</p><h1>循着星光，<br>来坐一会儿。</h1><p class="intro">在想法与实践之间，<br>把有趣的事情做成可用的作品。</p></div>
 <div id="flight-guide" hidden><small id="guide-progress">循云环游</small><span id="guide-target">云门</span></div><div id="flight-reticle" hidden aria-hidden="true"><i></i></div>

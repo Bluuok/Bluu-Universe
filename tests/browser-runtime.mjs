@@ -26,7 +26,7 @@ export const desktopLaunchOptions = {
 // Capture the remote X11 framebuffer independently of Chromium's screenshot
 // and screencast APIs. Keep the entire desktop as evidence of the real window;
 // do not pause animation, crop away failures, or change application quality.
-export async function saveDesktopFrame(page, file, { settle = false, finishGPU = false } = {}) {
+export async function saveDesktopFrame(page, file, { settle = false, finishGPU = false, completionTimeout = 45000 } = {}) {
   if (process.platform !== 'linux' || process.env.GITHUB_ACTIONS !== 'true')
     throw new Error('Desktop view capture is restricted to the remote Linux job');
   if (!/^:\d+(\.\d+)?$/.test(process.env.DISPLAY || '')) throw new Error('Expected a local X11 display');
@@ -49,7 +49,7 @@ export async function saveDesktopFrame(page, file, { settle = false, finishGPU =
     try {
       paintFrames = await Promise.race([
         page.evaluate(() => new Promise(resolve => requestAnimationFrame(first => requestAnimationFrame(second => resolve({ first, second }))))),
-        new Promise((_, reject) => { deadline = setTimeout(() => reject(new Error('Display frame wait timed out')), 45000); }),
+        new Promise((_, reject) => { deadline = setTimeout(() => reject(new Error('Display frame wait timed out')), completionTimeout); }),
       ]);
     } finally { clearTimeout(deadline); }
   }
@@ -72,7 +72,7 @@ export async function saveDesktopFrame(page, file, { settle = false, finishGPU =
               milliseconds: finished - started, contextLost: gl.isContextLost() }), 0);
           } catch (error) { reject(error); }
         }))),
-        new Promise((_, reject) => { deadline = setTimeout(() => reject(new Error('Diagnostic GPU completion timed out')), 45000); }),
+        new Promise((_, reject) => { deadline = setTimeout(() => reject(new Error('Diagnostic GPU completion timed out')), completionTimeout); }),
       ]);
       if (gpuCompletion.contextLost) throw new Error('Diagnostic WebGL context lost after finish');
     } finally { clearTimeout(deadline); }

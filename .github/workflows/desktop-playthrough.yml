@@ -7,7 +7,7 @@ on:
         description: Existing route suite to run
         type: choice
         default: all
-        options: [all, continuous, player, faults, controls]
+        options: [all, final, continuous, player, distant, faults, controls, contacts, glass, props, words, effects]
 
 permissions:
   contents: read
@@ -20,11 +20,12 @@ jobs:
   desktop:
     name: desktop-${{ matrix.suite }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 70
+    timeout-minutes: ${{ matrix.suite == 'distant' && 90 || 70 }}
     strategy:
       fail-fast: false
+      max-parallel: ${{ inputs.suite == 'words' && 2 || 7 }}
       matrix:
-        suite: ${{ fromJSON(inputs.suite == 'continuous' && '["continuous"]' || inputs.suite == 'player' && '["player"]' || inputs.suite == 'faults' && '["faults"]' || inputs.suite == 'controls' && '["controls"]' || '["continuous","player","faults","controls"]') }}
+        suite: ${{ fromJSON(inputs.suite == 'final' && '["continuous","distant","wall-rail","roof","glass","faults","controls"]' || inputs.suite == 'continuous' && '["continuous"]' || inputs.suite == 'player' && '["player"]' || inputs.suite == 'distant' && '["distant"]' || inputs.suite == 'faults' && '["faults"]' || inputs.suite == 'controls' && '["controls"]' || inputs.suite == 'contacts' && '["wall-rail","roof"]' || inputs.suite == 'glass' && '["glass"]' || inputs.suite == 'props' && '["props"]' || inputs.suite == 'words' && '["words-front","words-right","words-back","words-left","words-upper","words-lower"]' || inputs.suite == 'effects' && '["effects"]' || '["continuous","player","faults","controls"]') }}
     env:
       REMOTE_QA_SUITE: ${{ matrix.suite }}
       GOAL_FLIGHT_TIMEOUT_MS: '600000'
@@ -44,6 +45,13 @@ jobs:
           ARRIVAL_CPU_FRAME_MS=5000 node tests/room-flight-arrival-cpu.mjs
           ARRIVAL_CPU_SCENARIO=roof ARRIVAL_CPU_FRAME_MS=5000 ARRIVAL_CPU_IO_MS=1000 ARRIVAL_CPU_TIMEOUT_MS=600000 node tests/room-flight-arrival-cpu.mjs
           ARRIVAL_CPU_SCENARIO=doorway ARRIVAL_CPU_FRAME_MS=5000 ARRIVAL_CPU_IO_MS=1000 ARRIVAL_CPU_TIMEOUT_MS=600000 node tests/room-flight-arrival-cpu.mjs
+          node tests/room-entry-arrival-cpu.mjs
+          node tests/static-contact-attribution-cpu.mjs
+          node tests/glass-contact-route-cpu.mjs
+          node tests/studio-framing-cpu.mjs
+          node tests/prop-diagonal-route-cpu.mjs
+          node tests/flight-wake-check.mjs
+          node tests/flight-effects-lifecycle-check.mjs
       - run: npm run build
       - name: Install matched Linux Chromium
         run: npx playwright install --with-deps chromium

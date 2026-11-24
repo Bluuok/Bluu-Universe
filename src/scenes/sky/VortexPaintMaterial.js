@@ -109,8 +109,8 @@ export function makeVortexPaintMaterial(profile,{cloud=false,brushAtlas}={}) {
       vec2 paintUV=vec2(vOilUV.x*oilScale,vOilUV.y);
       vec3 paintWeights=pow(abs(normalize(vOilNormal)),vec3(4.));paintWeights/=max(.001,dot(paintWeights,vec3(1.)));
       vec4 dab,under;
-      ${profile.flowStroke?`dab=oilPrint(paintUV,1.65*oilStrokeScale,5.);
-      under=oilPrint(paintUV+vec2(.31,.035),.85*oilStrokeScale,3.);`:cloud?`dab=oilPrint(paintUV,3.15*oilStrokeScale,27.);
+      ${profile.flowStroke?`dab=oilPrint(paintUV,1.65*oilStrokeScale,23.);
+      under=oilPrint(paintUV+vec2(.31,.035),.85*oilStrokeScale,11.);`:cloud?`dab=oilPrint(paintUV,3.15*oilStrokeScale,27.);
       under=oilPrint(paintUV+vec2(.31,.018),1.55*oilStrokeScale,19.);`:`
       // The spherical core uses local triplanar marks, with no UV meridian
       // or polar chart. Each projection stays fixed when the camera moves.

@@ -11,7 +11,8 @@ import { preview } from 'vite';
 assert.equal(process.platform, 'linux', 'Remote desktop QA requires Linux');
 assert.equal(process.env.GITHUB_ACTIONS, 'true', 'Run through the explicit GitHub workflow');
 const requestedSuite = process.env.REMOTE_QA_SUITE || 'all';
-assert(['all', 'player', 'continuous', 'faults', 'controls'].includes(requestedSuite));
+const wordViews=['front','right','back','left','upper','lower'];
+assert(['all', 'player', 'distant', 'continuous', 'faults', 'controls', 'wall-rail', 'roof', 'glass', 'props', 'words', 'effects', ...wordViews.map(view=>'words-'+view)].includes(requestedSuite));
 const root = 'screenshots/remote-desktop';
 await mkdir(root, { recursive: true });
 const execute = promisify(execFile);
@@ -50,12 +51,13 @@ const report = { started: new Date().toISOString(), status: 'running',
   platform: process.platform, executable: chromium.executablePath(),
   scope: 'Remote Linux software-rendered keyboard/mouse routes; not Windows GPU or OS-focus acceptance',
   requestedSuite, suites: [], windowsBrowserStarted: false, independentReview: false };
-const run = (file, env) => new Promise((resolve, reject) => {
+const run = (file, env, budgetMinutes = 60) => new Promise((resolve, reject) => {
+  const started=Date.now(),timeout=budgetMinutes*60*1000;
   const child = spawn(process.execPath, [file], { stdio: 'inherit',
     env: { ...process.env, GOAL_URL: 'http://127.0.0.1:4259/', ...env },
-    timeout: 60 * 60 * 1000 });
+    timeout });
   child.once('error', reject);
-  child.once('close', (code, signal) => code === 0 ? resolve() : reject(new Error(`${file}: exit=${code}, signal=${signal}`)));
+  child.once('close', (code, signal) => code === 0 ? resolve() : reject(new Error(`${file}: exit=${code}, signal=${signal}, parentKillRequested=${child.killed}, elapsedMs=${Date.now()-started}, budgetMs=${timeout}`)));
 });
 let server;
 try {
@@ -66,34 +68,58 @@ try {
   for (const suite of [
     { id: 'player', name: 'three-normal-routes', file: 'tests/goal-player-review.mjs',
       report: 'tests/remote-player.json', env: { GOAL_OUT: `${root}/player`, GOAL_REPORT: 'tests/remote-player.json' } },
+    // Original route reached its project at the measured 60-minute child cap.
+    // One bounded extension leaves path, quality and assertions unchanged.
+    { id: 'distant', name: 'original-distant-route', file: 'tests/goal-player-review.mjs', route: 1, expectedRounds: 1, budgetMinutes: 75,
+      report: 'tests/remote-distant.json', env: { GOAL_PLAYER_ROUTE: '1', GOAL_OUT: `${root}/distant`, GOAL_REPORT: 'tests/remote-distant.json' } },
+    { id: 'wall-rail', name: 'original-wall-rail-route', file: 'tests/goal-player-review.mjs', route: 2, expectedRounds: 1,
+      report: 'tests/remote-wall-rail.json', env: { GOAL_PLAYER_ROUTE: '2', GOAL_OUT: `${root}/wall-rail`, GOAL_REPORT: 'tests/remote-wall-rail.json' } },
+    { id: 'roof', name: 'original-roof-route', file: 'tests/goal-player-review.mjs', route: 3, expectedRounds: 1,
+      report: 'tests/remote-roof.json', env: { GOAL_PLAYER_ROUTE: '3', GOAL_OUT: `${root}/roof`, GOAL_REPORT: 'tests/remote-roof.json' } },
+    { id: 'glass', name: 'glass-body-route', file: 'tests/goal-player-review.mjs', route: 4, expectedRounds: 1,
+      report: 'tests/remote-glass.json', env: { GOAL_PLAYER_ROUTE: '4', GOAL_OUT: `${root}/glass`, GOAL_REPORT: 'tests/remote-glass.json' } },
+    { id: 'props', name: 'near-prop-and-diagonal-route', file: 'tests/goal-player-review.mjs', route: 5, expectedRounds: 1,
+      report: 'tests/remote-props.json', env: { GOAL_PLAYER_ROUTE: '5', GOAL_OUT: `${root}/props`, GOAL_REPORT: 'tests/remote-props.json' } },
+    { id: 'words', name: 'six-view-word-orbit', file: 'tests/word-orbit-player-review.mjs', expectedViews: 6,
+      report: 'tests/remote-words.json', env: { WORD_ORBIT_OUT: `${root}/words`, WORD_ORBIT_REPORT: 'tests/remote-words.json', WORD_CYCLE_TIMEOUT_MS: '300000' } },
+    ...wordViews.map(view=>({id:`words-${view}`,name:`word-orbit-${view}`,file:'tests/word-orbit-player-review.mjs',expectedViews:1,view,
+      report:`tests/remote-words-${view}.json`,env:{WORD_ORBIT_VIEW:view,WORD_ORBIT_OUT:`${root}/words-${view}`,WORD_ORBIT_REPORT:`tests/remote-words-${view}.json`,WORD_CYCLE_TIMEOUT_MS:'1800000'}})),
+    { id: 'effects', name: 'flight-effects-phases', file: 'tests/flight-effects-player-review.mjs', expectedSteps: 9,
+      report: 'tests/remote-effects.json', env: { WAKE_OUT: `${root}/effects`, WAKE_REPORT: 'tests/remote-effects.json' } },
     { id: 'continuous', name: 'three-continuous-visits', file: 'tests/goal-continuous-visit-review.mjs',
       report: 'tests/remote-continuous.json', env: { CONTINUOUS_OUT: `${root}/continuous`, CONTINUOUS_REPORT: 'tests/remote-continuous.json' } },
-    { id: 'faults', name: 'resource-failures', file: 'tests/goal-resource-failure-review.mjs', expectedCases: 7,
+    { id: 'faults', name: 'resource-failures', file: 'tests/goal-resource-failure-review.mjs', expectedCases: 8,
       report: 'tests/remote-resource-failures.json', env: { GOAL_FAULT_OUT: `${root}/resource-failures`, GOAL_FAULT_REPORT: 'tests/remote-resource-failures.json' } },
     { id: 'controls', name: 'game-controls', file: 'tests/game-controls-review.mjs', expectedChecks: 15,
       report: 'tests/remote-game-controls.json', env: { GAME_OUT: `${root}/controls`, GAME_REPORT: 'tests/remote-game-controls.json' } },
-  ].filter(suite => requestedSuite === 'all' || suite.id === requestedSuite)) {
-    const entry = { name: suite.name, report: suite.report, status: 'running' };
+  ].filter(suite => requestedSuite === 'all' ? ['player', 'continuous', 'faults', 'controls'].includes(suite.id) : suite.id === requestedSuite)) {
+    const entry = { name: suite.name, report: suite.report, status: 'running', childBudgetMinutes:suite.budgetMinutes||60 };
     report.suites.push(entry);
     entry.recording = { method: 'FFmpeg X11 desktop; independent of Chromium screencast',
       file: `${root}/${suite.name}.mp4`, started: new Date().toISOString(), frameRate: 8 };
     const recording = startRecording(entry.recording.file);
-    try { await run(suite.file, { ...suite.env, REMOTE_SCREEN_RECORDING: entry.recording.file }); }
+    try { await run(suite.file, { ...suite.env, REMOTE_SCREEN_RECORDING: entry.recording.file },entry.childBudgetMinutes); }
     finally {
       await finishRecording(recording, entry);
       const result = await readFile(suite.report, 'utf8').then(JSON.parse).catch(() => null);
       if (result) {
         entry.status = result.status; entry.build = result.build;
         entry.completedRounds = (result.routes || result.rounds || []).filter(round => round.status === 'passed').length;
+        if (suite.route) { entry.selectedRoutes = result.requestedRoutes; assert.deepEqual(entry.selectedRoutes, [suite.route]); }
         if (suite.expectedCases) entry.completedCases = result.cases?.filter(item => item.status === 'passed').length;
         if (suite.expectedChecks) entry.completedChecks = result.checks?.filter(item => item.status === 'passed').length;
-        entry.trustedInputs = result.trustedInputs ?? result.routes?.reduce((n, route) => n + (route.trustedInputs || 0), 0);
+        if (suite.expectedViews) entry.completedViews = result.views?.filter(item => item.status === 'passed').length;
+        if (suite.view) {entry.selectedView=result.requestedView;assert.equal(result.requestedView,suite.view);if(result.status==='passed')assert.deepEqual(result.views.map(view=>view.id),[suite.view]);}
+        if (suite.expectedSteps) entry.completedSteps = result.steps?.length;
+        entry.trustedInputs = result.trustedInputs ?? result.inputs?.trusted ?? result.routes?.reduce((n, route) => n + (route.trustedInputs || 0), 0);
       } else entry.status = 'missing-report';
     }
     assert.equal(entry.status, 'passed', `${suite.name} did not fully pass`);
     if (suite.expectedCases) assert.equal(entry.completedCases, suite.expectedCases);
     else if (suite.expectedChecks) assert.equal(entry.completedChecks, suite.expectedChecks);
-    else assert.equal(entry.completedRounds, 3);
+    else if (suite.expectedViews) assert.equal(entry.completedViews, suite.expectedViews);
+    else if (suite.expectedSteps) assert.equal(entry.completedSteps, suite.expectedSteps);
+    else assert.equal(entry.completedRounds, suite.expectedRounds ?? 3);
     assert.equal(entry.recording.closed.code, 0, 'The independent recording must close cleanly');
     assert(entry.recording.media?.streams.some(stream => stream.width === 1600 && stream.height === 1100));
     if (report.build) assert.deepEqual(entry.build, report.build);
@@ -119,7 +145,7 @@ finally {
     (priority(a) < 0 ? 99 : priority(a)) - (priority(b) < 0 ? 99 : priority(b)));
   const clips = files.filter(file => file.endsWith('-preview.mp4'));
   let remaining = 24 * 1024 * 1024;
-  for (const file of ['tests/remote-desktop-summary.json', 'tests/remote-player.json', 'tests/remote-continuous.json', 'tests/remote-resource-failures.json', 'tests/remote-game-controls.json', ...clips.map(file => `${root}/${file}`), ...pictures.map(file => `${root}/${file}`)]) {
+  for (const file of ['tests/remote-desktop-summary.json', ...wordViews.map(view=>`tests/remote-words-${view}.json`), 'tests/remote-player.json', 'tests/remote-distant.json', 'tests/remote-props.json', 'tests/remote-words.json', 'tests/remote-effects.json', 'tests/remote-wall-rail.json', 'tests/remote-roof.json', 'tests/remote-glass.json', 'tests/remote-continuous.json', 'tests/remote-resource-failures.json', 'tests/remote-game-controls.json', ...clips.map(file => `${root}/${file}`), ...pictures.map(file => `${root}/${file}`)]) {
     const bytes = await readFile(file).catch(() => null); if (!bytes) continue;
     const compressed = gzipSync(bytes);
     if (compressed.length > remaining) continue;

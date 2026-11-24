@@ -26,7 +26,8 @@ concurrency:
 
 jobs:
   controller:
-    runs-on: ubuntu-latest
+    # Keep the image compatible with the repository's pinned Playwright 1.51.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
