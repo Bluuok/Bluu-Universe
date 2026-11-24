@@ -127,6 +127,11 @@ export class SpaceScene {
     this.rivers = new StarRiverField({scene,brushAtlas:this.vortex.brushAtlas,manifest:manifest.rivers});
     this.exploration = new ExplorationField({scene,brushAtlas:this.vortex.brushAtlas,rockSurface:manifest.space?.rockSurface});
     this.paintFlow = new PaintFlowField({scene,vortex:this.vortex});
+    if (this.paintFlow.clockUniform) {
+      this.vortex.bands[0].mesh.material.uniforms.crestTime=this.paintFlow.clockUniform;
+      const tide=this.backdrop.parallax?.tide;
+      if (tide) tide.material.uniforms.tideTime=this.paintFlow.clockUniform;
+    }
     this.flybys = manifest.sky?.flybys?.enabled ? createFlybys(scene,{random:seeded(manifest.sky.flybys.seed)}) : null;
     this.wordField = manifest.sky?.wordField?.enabled ? new ParticleWords({scene,config:manifest.sky.wordField}) : null;
     this.hotspots = []; this.floaters = []; this.spinObjects = [];
@@ -285,7 +290,7 @@ export class SpaceScene {
   }
 
   updateAmbient(dt,camera,options){this.backdrop.prepareForCamera(camera);this.flybys?.update(dt,camera,options);this.wordField?.update(dt,camera,options);this.paintFlow?.update(dt,options);}
-  disposeAmbient(){this.flybys?.dispose();this.wordField?.dispose();this.paintFlow?.dispose();}
+  disposeAmbient(){this.flybys?.dispose();this.wordField?.dispose();this.paintFlow?.dispose();this.backdrop.dispose();}
 
   setInteriorProgress(progress) {
     const p=THREE.MathUtils.clamp(progress,0,1);this.interior=p;this.group.visible=p<.999;

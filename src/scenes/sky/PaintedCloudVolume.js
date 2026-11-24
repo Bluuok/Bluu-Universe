@@ -89,6 +89,7 @@ export function makePaintedCloudVolume({geometry,curve,curveSegments,crossSegmen
     fragmentShader:`precision highp sampler3D;
       uniform sampler3D cloudDensity;uniform float cloudTime;uniform float cloudWind;uniform float cloudPathLength;uniform float cloudOpacity;uniform float cloudShadowStrength;uniform float cloudErosion;uniform float cloudBreakup;uniform vec3 cloudMin;uniform vec3 cloudSize;
       uniform mat4 cloudWorld;uniform mat4 cloudInverse;uniform mat4 projectionMatrix;uniform vec3 cloudBlue;uniform vec3 cloudLight;uniform vec3 cloudGold;uniform vec3 cloudShadow;
+      ${profile.litCrest?'uniform float crestTime;':''}
       uniform sampler2D oilBrushAtlas;uniform sampler2D oilPaintMap;uniform float oilPaintLoaded;
       uniform vec3 oilFocus;uniform float oilFocusActive;varying vec3 cloudEye;varying vec3 cloudPoint;
       float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
@@ -123,6 +124,15 @@ export function makePaintedCloudVolume({geometry,curve,curveSegments,crossSegmen
         float lightDensity=field(surface+localLight*1.4)*.5+field(surface+localLight*2.8)*.32+field(surface+localLight*4.5)*.18;
         colour=mix(colour,cloudShadow,clamp((.18*(1.-diffuse)+.26*lightDensity)*cloudShadowStrength,0.,.85));
         colour*=.62+.56*diffuse;
+        ${profile.litCrest?`// A fixed patch on the near-facing upper curl catches the travelling light.
+        vec3 lip=(surface-vec3(-6.,7.,7.))/vec3(10.,6.,7.);
+        float bank=max(0.,1.-dot(lip,lip))*smoothstep(.48,.88,diffuse);
+        float track=(-surface.x+.35*surface.z)*.052;
+        float wave=fract(track-crestTime*.095);
+        float glint=smoothstep(0.,.08,wave)*(1.-smoothstep(.08,.37,wave));
+        float loaded=bank*smoothstep(.24,.66,bristle.g+.22*wash);
+        colour=mix(colour,cloudGold,loaded*(.36+.45*glint));
+        colour+=cloudLight*loaded*glint*.32;`:''}
         return colour;
       }
       void main(){
@@ -175,6 +185,7 @@ export function makePaintedCloudVolume({geometry,curve,curveSegments,crossSegmen
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`});
+  if(profile.litCrest) uniforms.crestTime={value:0};
   material.userData.paintUniforms=uniforms;material.userData.permeable=true;
   const boundsGeometry=new THREE.BoxGeometry(size.x,size.y,size.z);boundsGeometry.translate(...box.getCenter(new THREE.Vector3()).toArray());
   const mesh=new THREE.Mesh(boundsGeometry,material);

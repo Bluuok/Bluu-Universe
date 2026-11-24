@@ -88,8 +88,26 @@ export class PaintFlowField {
       shader.vertexShader='uniform float paintFlowTime;attribute vec3 flowAxis;attribute vec2 flowMotion;\n'+shader.vertexShader;
       shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
         transformed+=flowAxis*sin(paintFlowTime*flowMotion.y+flowMotion.x)*${config.motion.amplitude.toFixed(4)};`);
+      shader.fragmentShader='uniform float paintFlowTime;\n'+shader.fragmentShader;
+      shader.fragmentShader=shader.fragmentShader.replace('#include <roughnessmap_fragment>',`
+        // The brush coordinate is arc length in metres. Only this reachable
+        // bend catches the light; the other merged currents keep their paint.
+        vec3 bendOffset=(vOilLocal-vec3(-38.,-22.,-70.))/vec3(27.,12.,22.);
+        float bend=max(0.,1.-dot(bendOffset,bendOffset));
+        float section=vOilUV.y*6.2831853;
+        float across=cos(section)+.42;
+        float loaded=max(0.,sin(section))*exp(-across*across/.14);
+        float comb=cos(section*9.+sin(vOilUV.x*.105))*.5+.5;
+        float combAA=1.-smoothstep(.7,2.6,fwidth(section*9.));
+        diffuseColor.rgb*=1.-.24*bend*max(0.,cos(section))*comb*combAA;
+        float travel=fract(vOilUV.x*.038-paintFlowTime*.09-.035*under.g);
+        float pulse=smoothstep(0.,.055,travel)*(1.-smoothstep(.055,.33,travel));
+        float dry=smoothstep(.29,.77,dab.g+.20*sin(vOilUV.x*.81));
+        diffuseColor.rgb=mix(diffuseColor.rgb,oilLight,bend*loaded*dry*(.47+.38*pulse));
+        diffuseColor.rgb+=vec3(.11,.17,.18)*bend*loaded*pulse;
+        #include <roughnessmap_fragment>`);
     };
-    material.customProgramCacheKey=()=> 'directional-thick-paint-v6';
+    material.customProgramCacheKey=()=> 'directional-thick-paint-v7';
     for(const recipe of config.paths){
       if(recipe.enabled===false)continue;
       const {curve,normal}=this.makeCurve(recipe,vortex),length=curve.getLength();

@@ -4,7 +4,7 @@ export const VortexManifest = {
   id:'azure-whorl', position:[-26,-4,-42], rotation:[.04,.47,-.08],
   geometry:{curveSegments:240,crossSegments:32},
   cloud:{axialPower:4,shadingSegments:4,density:.90,shadowStrength:2.4,crestBlend:.30,color:'#3375ac',crest:'#abc7cf',shadow:'#143969',opacity:.96,strokeScale:1,strokeStrength:.66,relief:.0018,paintAccent:'#c3d2cf',paintShadow:'#154675',paintLight:'#c9b582',emissiveIntensity:.48,edgeBreakup:.22,
-    innerRadius:6,outerRadius:18,turns:.85,phase:.3,width:[2.2,4.9],depth:[1.6,3.0],
+    litCrest:true,innerRadius:6,outerRadius:18,turns:.85,phase:.3,width:[2.2,4.9],depth:[1.6,3.0],
     depthPath:[[0,-6],[.2,-3],[.42,8],[.63,10],[.82,3],[1,-6]],
     bulges:[{at:.3,spread:.10,width:1.0,depth:3.6},{at:.68,spread:.12,width:1.2,depth:3.1}]},
   wing:{axialPower:4,shadingSegments:4,density:.90,shadowStrength:2.4,crestBlend:.30,color:'#528caf',crest:'#b3d2df',shadow:'#234a75',opacity:.94,strokeScale:.86,strokeStrength:.62,relief:.0016,paintAccent:'#c5d0c4',paintShadow:'#215b8b',paintLight:'#c5ba8b',emissiveIntensity:.50,edgeBreakup:.26,
